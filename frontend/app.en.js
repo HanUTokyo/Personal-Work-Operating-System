@@ -1,11 +1,14 @@
 const API_BASE_URL = window.TASK_API_BASE_URL || `${window.location.protocol}//${window.location.hostname || "localhost"}:8080/api`;
 const TASKS_API_URL = `${API_BASE_URL}/tasks`;
 const FLASH_NOTES_API_URL = `${API_BASE_URL}/flash-notes`;
+const AUTH_API_URL = `${API_BASE_URL}/auth`;
 
 const state = {
   keyword: "",
   sortBy: "priority",
-  order: "desc"
+  order: "desc",
+  hideCompleted: false,
+  authMode: "login"
 };
 
 let tasks = [];
@@ -19,6 +22,7 @@ let pendingAddPhaseTaskId = null;
 let editingPhaseTaskId = null;
 let pendingEditPhaseTaskId = null;
 let pendingEditPhaseIndex = null;
+let movingPhaseTaskId = null;
 let addingNoteTaskId = null;
 let editingNoteTaskId = null;
 let pendingAddNoteTaskId = null;
@@ -31,6 +35,11 @@ let addingFlashNote = false;
 let editingFlashNoteId = null;
 let deletingFlashNoteId = null;
 let deletingTaskNoteId = null;
+let authToken = localStorage.getItem("task-app-auth-token") || "";
+let currentUser = null;
+let sharingTaskId = null;
+let taskShares = [];
+let shareLoading = false;
 const THEME_STORAGE_KEY = "task-app-theme";
 const detailPreviewState = {
   recentDecisions: false,
@@ -39,6 +48,16 @@ const detailPreviewState = {
 };
 
 const elements = {
+  authGate: document.getElementById("authGate"),
+  authForm: document.getElementById("authForm"),
+  authTitle: document.getElementById("authTitle"),
+  authUsername: document.getElementById("authUsername"),
+  authPassword: document.getElementById("authPassword"),
+  authDisplayNameLabel: document.getElementById("authDisplayNameLabel"),
+  authDisplayName: document.getElementById("authDisplayName"),
+  authValidation: document.getElementById("authValidation"),
+  authSubmitBtn: document.getElementById("authSubmitBtn"),
+  authModeToggleBtn: document.getElementById("authModeToggleBtn"),
   taskModal: document.getElementById("taskModal"),
   confirmModal: document.getElementById("confirmModal"),
   addPhaseModal: document.getElementById("addPhaseModal"),
@@ -47,7 +66,10 @@ const elements = {
   detailDrawerBackdrop: document.getElementById("detailDrawerBackdrop"),
   detailDrawer: document.getElementById("detailDrawer"),
   flashNoteModal: document.getElementById("flashNoteModal"),
+  shareModal: document.getElementById("shareModal"),
   themeToggleBtn: document.getElementById("themeToggleBtn"),
+  currentUserLabel: document.getElementById("currentUserLabel"),
+  logoutBtn: document.getElementById("logoutBtn"),
   openFlashNoteModalBtn: document.getElementById("openFlashNoteModalBtn"),
   closeFlashNoteModalBtn: document.getElementById("closeFlashNoteModalBtn"),
   openTaskModalBtn: document.getElementById("openTaskModalBtn"),
@@ -84,6 +106,14 @@ const elements = {
   flashNoteValidation: document.getElementById("flashNoteValidation"),
   flashNoteSubmitBtn: document.getElementById("flashNoteSubmitBtn"),
   flashNoteList: document.getElementById("flashNoteList"),
+  shareCloseBtn: document.getElementById("shareCloseBtn"),
+  shareModalTitle: document.getElementById("shareModalTitle"),
+  shareForm: document.getElementById("shareForm"),
+  shareUsername: document.getElementById("shareUsername"),
+  sharePermission: document.getElementById("sharePermission"),
+  shareValidation: document.getElementById("shareValidation"),
+  shareSubmitBtn: document.getElementById("shareSubmitBtn"),
+  shareList: document.getElementById("shareList"),
   taskForm: document.getElementById("taskForm"),
   formTitle: document.getElementById("formTitle"),
   submitBtn: document.getElementById("submitBtn"),
@@ -95,6 +125,7 @@ const elements = {
   sortBySelect: document.getElementById("sortBySelect"),
   orderSelect: document.getElementById("orderSelect"),
   applySortBtn: document.getElementById("applySortBtn"),
+  hideCompletedBtn: document.getElementById("hideCompletedBtn"),
   taskTableBody: document.getElementById("taskTableBody"),
   emptyState: document.getElementById("emptyState"),
   toast: document.getElementById("toast"),
@@ -120,19 +151,32 @@ const elements = {
 
 document.addEventListener("DOMContentLoaded", init);
 
-function init() {
+async function init() {
   elements.sortBySelect.value = state.sortBy;
   elements.orderSelect.value = state.order;
   initTheme();
   bindEvents();
   resetForm();
+  updateHideCompletedButton();
   applySelectTone(elements.taskPriority, "priority");
   applySelectTone(elements.addPhaseStatus, "status");
   applySelectTone(elements.editPhaseStatus, "status");
-  loadTasks();
+  updateAuthMode();
+  const authenticated = await initializeAuth();
+  if (authenticated) {
+    loadTasks();
+  }
 }
 
 function bindEvents() {
+  elements.authForm.addEventListener("submit", handleAuthSubmit);
+  elements.authModeToggleBtn.addEventListener("click", () => {
+    state.authMode = state.authMode === "login" ? "register" : "login";
+    updateAuthMode();
+  });
+
+  elements.logoutBtn.addEventListener("click", handleLogout);
+
   if (elements.themeToggleBtn) {
     elements.themeToggleBtn.addEventListener("click", toggleTheme);
   }
@@ -178,6 +222,10 @@ function bindEvents() {
     closeAddNoteModal(true);
   });
 
+  elements.shareCloseBtn.addEventListener("click", () => {
+    closeShareModal();
+  });
+
   elements.closeFlashNoteModalBtn.addEventListener("click", () => {
     closeFlashNoteModal(true);
   });
@@ -216,6 +264,9 @@ function bindEvents() {
   });
   elements.addNoteForm.addEventListener("submit", handleAddNoteSubmit);
   elements.addNoteContent.addEventListener("input", validateAddNoteForm);
+  elements.shareForm.addEventListener("submit", handleShareSubmit);
+  elements.shareList.addEventListener("change", handleShareListChange);
+  elements.shareList.addEventListener("click", handleShareListClick);
   elements.flashNoteForm.addEventListener("submit", handleFlashNoteSubmit);
   elements.flashNoteContent.addEventListener("input", () => {
     validateFlashNoteForm(false);
@@ -267,6 +318,11 @@ function bindEvents() {
       return;
     }
 
+    if (isVisible(elements.shareModal)) {
+      closeShareModal();
+      return;
+    }
+
     if (isVisible(elements.flashNoteModal)) {
       return;
     }
@@ -291,6 +347,19 @@ function bindEvents() {
   });
 
   elements.phaseList.addEventListener("click", (event) => {
+    const moveBtn = event.target.closest("button[data-move-index][data-move-direction]");
+    if (moveBtn) {
+      const moveIndex = Number(moveBtn.dataset.moveIndex);
+      const direction = moveBtn.dataset.moveDirection;
+      if (Number.isNaN(moveIndex)) {
+        return;
+      }
+
+      currentPhases = movePhaseInList(collectPhasesFromDom(), moveIndex, direction);
+      renderPhaseInputs();
+      return;
+    }
+
     const removeBtn = event.target.closest("button[data-remove-index]");
     if (!removeBtn) {
       return;
@@ -303,13 +372,21 @@ function bindEvents() {
 
     currentPhases = collectPhasesFromDom();
     if (currentPhases.length <= 1) {
-      showToast("At least one phase is required", true);
+      showToast("至少保留一个Phase ", true);
       return;
     }
 
     currentPhases.splice(removeIndex, 1);
     renderPhaseInputs();
   });
+
+  if (elements.hideCompletedBtn) {
+    elements.hideCompletedBtn.addEventListener("click", () => {
+      state.hideCompleted = !state.hideCompleted;
+      updateHideCompletedButton();
+      renderTable();
+    });
+  }
 
   elements.phaseList.addEventListener("change", (event) => {
     const target = event.target;
@@ -403,9 +480,21 @@ function bindEvents() {
       return;
     }
 
+    if (action === "share") {
+      await openShareModal(taskId);
+      return;
+    }
+
     if (action === "edit-phase") {
       const phaseIndex = Number(actionButton.dataset.phaseIndex);
       openEditPhaseModal(taskId, phaseIndex);
+      return;
+    }
+
+    if (action === "move-phase") {
+      const phaseIndex = Number(actionButton.dataset.phaseIndex);
+      const direction = actionButton.dataset.direction;
+      await moveExistingTaskPhase(taskId, phaseIndex, direction);
       return;
     }
 
@@ -413,6 +502,118 @@ function bindEvents() {
       await removeTask(taskId);
     }
   });
+}
+
+async function initializeAuth() {
+  if (!authToken) {
+    showAuthGate();
+    return false;
+  }
+
+  try {
+    const response = await request(`${AUTH_API_URL}/me`);
+    currentUser = response.data;
+    hideAuthGate();
+    updateCurrentUserLabel();
+    return true;
+  } catch (error) {
+    clearAuth();
+    showAuthGate();
+    return false;
+  }
+}
+
+async function handleAuthSubmit(event) {
+  event.preventDefault();
+  const username = elements.authUsername.value.trim();
+  const password = elements.authPassword.value;
+  const displayName = elements.authDisplayName.value.trim();
+  if (!username || !password) {
+    setAuthValidation("Username and password are required", false);
+    return;
+  }
+
+  const payload = { username, password };
+  if (state.authMode === "register") {
+    payload.displayName = displayName;
+  }
+
+  try {
+    elements.authSubmitBtn.disabled = true;
+    elements.authSubmitBtn.textContent = state.authMode === "register" ? "Creating..." : "Signing in...";
+    const response = await request(`${AUTH_API_URL}/${state.authMode === "register" ? "register" : "login"}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(payload)
+    });
+    authToken = response.data.token;
+    currentUser = response.data.user;
+    localStorage.setItem("task-app-auth-token", authToken);
+    setAuthValidation("", true);
+    hideAuthGate();
+    updateCurrentUserLabel();
+    await loadTasks();
+  } catch (error) {
+    setAuthValidation(error.message, false);
+  } finally {
+    elements.authSubmitBtn.disabled = false;
+    updateAuthMode();
+  }
+}
+
+async function handleLogout() {
+  try {
+    if (authToken) {
+      await request(`${AUTH_API_URL}/logout`, { method: "POST" });
+    }
+  } catch (error) {
+    // 本地退出不依赖服务端响应。
+  } finally {
+    clearAuth();
+    tasks = [];
+    flashNotes = [];
+    renderTable();
+    renderStats();
+    renderDashboards();
+    closeDetailDrawer();
+    showAuthGate();
+  }
+}
+
+function updateAuthMode() {
+  const registering = state.authMode === "register";
+  elements.authTitle.textContent = registering ? "Create Account" : "Sign In";
+  elements.authSubmitBtn.textContent = registering ? "Create Account" : "Sign In";
+  elements.authModeToggleBtn.textContent = registering ? "Already have an account" : "Create Account";
+  elements.authDisplayNameLabel.classList.toggle("hidden", !registering);
+  elements.authPassword.setAttribute("autocomplete", registering ? "new-password" : "current-password");
+  setAuthValidation("", true);
+}
+
+function showAuthGate() {
+  elements.authGate.classList.remove("hidden");
+  elements.authUsername.focus();
+  updateCurrentUserLabel();
+}
+
+function hideAuthGate() {
+  elements.authGate.classList.add("hidden");
+}
+
+function clearAuth() {
+  authToken = "";
+  currentUser = null;
+  localStorage.removeItem("task-app-auth-token");
+  updateCurrentUserLabel();
+}
+
+function updateCurrentUserLabel() {
+  elements.currentUserLabel.textContent = currentUser ? `User: ${currentUser.displayName || currentUser.username}` : "";
+}
+
+function setAuthValidation(message, isValid) {
+  elements.authValidation.textContent = message;
+  elements.authValidation.classList.toggle("hidden", isValid);
 }
 
 function openTaskModal() {
@@ -472,6 +673,7 @@ function closeModal(modalElement) {
     !isVisible(elements.addPhaseModal) &&
     !isVisible(elements.editPhaseModal) &&
     !isVisible(elements.addNoteModal) &&
+    !isVisible(elements.shareModal) &&
     !isVisible(elements.flashNoteModal) &&
     !isDetailDrawerVisible() &&
     lastFocusedElement
@@ -488,6 +690,7 @@ function updateBodyModalState() {
     isVisible(elements.addPhaseModal) ||
     isVisible(elements.editPhaseModal) ||
     isVisible(elements.addNoteModal) ||
+    isVisible(elements.shareModal) ||
     isVisible(elements.flashNoteModal) ||
     isDetailDrawerVisible()
   ) {
@@ -498,7 +701,7 @@ function updateBodyModalState() {
 }
 
 function openAddPhaseModal(taskId) {
-  if (addingPhaseTaskId !== null || deletingTaskId !== null) {
+  if (addingPhaseTaskId !== null || movingPhaseTaskId !== null || deletingTaskId !== null) {
     return;
   }
 
@@ -510,7 +713,7 @@ function openAddPhaseModal(taskId) {
 
   const phases = ensureTaskPhases(task);
   pendingAddPhaseTaskId = taskId;
-  elements.addPhaseModalTitle.textContent = `Add phase for project "${task.taskTitle}"`;
+  elements.addPhaseModalTitle.textContent = `Add phase for project "${task.taskTitle}"Add Phase`;
   elements.addPhaseName.value = `Phase ${phases.length + 1}`;
   elements.addPhaseStatus.value = "TODO";
   elements.addPhaseDescription.value = "";
@@ -537,7 +740,7 @@ function resetAddPhaseForm() {
 }
 
 function openEditPhaseModal(taskId, phaseIndex) {
-  if (addingPhaseTaskId !== null || deletingTaskId !== null || editingPhaseTaskId !== null) {
+  if (addingPhaseTaskId !== null || movingPhaseTaskId !== null || deletingTaskId !== null || editingPhaseTaskId !== null) {
     return;
   }
 
@@ -560,7 +763,7 @@ function openEditPhaseModal(taskId, phaseIndex) {
   const phase = phases[phaseIndex];
   pendingEditPhaseTaskId = taskId;
   pendingEditPhaseIndex = phaseIndex;
-  elements.editPhaseModalTitle.textContent = `Edit phase for project "${task.taskTitle}"`;
+  elements.editPhaseModalTitle.textContent = `Edit project "${task.taskTitle}"Phase `;
   elements.editPhaseName.value = phase.phaseName;
   elements.editPhaseStatus.value = phase.phaseStatus;
   elements.editPhaseDescription.value = phase.phaseDescription || "";
@@ -579,7 +782,7 @@ function closeEditPhaseModal(shouldReset) {
 function resetEditPhaseForm() {
   pendingEditPhaseTaskId = null;
   pendingEditPhaseIndex = null;
-  elements.editPhaseModalTitle.textContent = "Edit Phase";
+  elements.editPhaseModalTitle.textContent = "EditPhase ";
   elements.editPhaseForm.reset();
   elements.editPhaseStatus.value = "TODO";
   elements.editPhaseDescription.value = "";
@@ -600,7 +803,7 @@ function openAddNoteModal(taskId) {
 
   pendingAddNoteTaskId = taskId;
   pendingEditNoteId = null;
-  elements.addNoteModalTitle.textContent = `Add note for project "${task.taskTitle}"`;
+  elements.addNoteModalTitle.textContent = `Add phase for project "${task.taskTitle}"Add Note`;
   elements.addNoteConfirmBtn.textContent = "Add Note";
   elements.addNoteType.value = "RECENT_DECISIONS";
   elements.addNoteContent.value = "";
@@ -627,7 +830,7 @@ function openEditNoteModal(taskId, noteId) {
 
   pendingAddNoteTaskId = taskId;
   pendingEditNoteId = noteId;
-  elements.addNoteModalTitle.textContent = `Edit note for project "${task.taskTitle}"`;
+  elements.addNoteModalTitle.textContent = `Edit project "${task.taskTitle}" note`;
   elements.addNoteConfirmBtn.textContent = "Save Note";
   elements.addNoteType.value = note.noteType || "RECENT_DECISIONS";
   elements.addNoteContent.value = note.noteContent || "";
@@ -651,6 +854,166 @@ function resetAddNoteForm() {
   elements.addNoteType.value = "RECENT_DECISIONS";
   elements.addNoteContent.value = "";
   setAddNoteValidation("", true);
+}
+
+async function openShareModal(taskId) {
+  const task = tasks.find((item) => item.id === taskId);
+  if (!task || !canManageShares(task)) {
+    showToast("Only the owner can manage sharing", true);
+    return;
+  }
+
+  sharingTaskId = taskId;
+  elements.shareModalTitle.textContent = `Share Project "${task.taskTitle}"`;
+  elements.shareUsername.value = "";
+  elements.sharePermission.value = "VIEW";
+  setShareValidation("", true);
+  openModal(elements.shareModal, elements.shareUsername);
+  await loadTaskShares(taskId);
+}
+
+function closeShareModal() {
+  closeModal(elements.shareModal);
+  sharingTaskId = null;
+  taskShares = [];
+  elements.shareList.innerHTML = "";
+  setShareValidation("", true);
+}
+
+async function loadTaskShares(taskId) {
+  try {
+    shareLoading = true;
+    renderShareList();
+    const response = await request(`${TASKS_API_URL}/${taskId}/shares`);
+    taskShares = response.data || [];
+    renderShareList();
+  } catch (error) {
+    showToast(error.message, true);
+  } finally {
+    shareLoading = false;
+    renderShareList();
+  }
+}
+
+async function handleShareSubmit(event) {
+  event.preventDefault();
+  if (sharingTaskId === null || shareLoading) {
+    return;
+  }
+
+  const username = elements.shareUsername.value.trim();
+  if (!username) {
+    setShareValidation("Username is required", false);
+    return;
+  }
+
+  try {
+    elements.shareSubmitBtn.disabled = true;
+    elements.shareSubmitBtn.textContent = "Adding...";
+    await request(`${TASKS_API_URL}/${sharingTaskId}/shares`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username,
+        permission: elements.sharePermission.value
+      })
+    });
+    elements.shareUsername.value = "";
+    setShareValidation("", true);
+    showToast("Share settings updated");
+    await loadTaskShares(sharingTaskId);
+  } catch (error) {
+    setShareValidation(error.message, false);
+  } finally {
+    elements.shareSubmitBtn.disabled = false;
+    elements.shareSubmitBtn.textContent = "Add Share";
+  }
+}
+
+async function handleShareListChange(event) {
+  const select = event.target.closest("select[data-share-id]");
+  if (!select || sharingTaskId === null) {
+    return;
+  }
+
+  const shareId = Number(select.dataset.shareId);
+  const username = select.dataset.username;
+  if (!shareId || !username) {
+    return;
+  }
+
+  try {
+    await request(`${TASKS_API_URL}/${sharingTaskId}/shares/${shareId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        username,
+        permission: select.value
+      })
+    });
+    showToast("Share permission updated");
+    await loadTaskShares(sharingTaskId);
+  } catch (error) {
+    showToast(error.message, true);
+    await loadTaskShares(sharingTaskId);
+  }
+}
+
+async function handleShareListClick(event) {
+  const removeBtn = event.target.closest("button[data-remove-share-id]");
+  if (!removeBtn || sharingTaskId === null) {
+    return;
+  }
+
+  const shareId = Number(removeBtn.dataset.removeShareId);
+  if (!shareId) {
+    return;
+  }
+
+  try {
+    removeBtn.disabled = true;
+    await request(`${TASKS_API_URL}/${sharingTaskId}/shares/${shareId}`, { method: "DELETE" });
+    showToast("Share removed");
+    await loadTaskShares(sharingTaskId);
+  } catch (error) {
+    showToast(error.message, true);
+  }
+}
+
+function renderShareList() {
+  if (shareLoading) {
+    elements.shareList.innerHTML = `<p class="knowledge-empty">Loading...</p>`;
+    return;
+  }
+  if (!taskShares.length) {
+    elements.shareList.innerHTML = `<p class="knowledge-empty">No users shared yet</p>`;
+    return;
+  }
+
+  elements.shareList.innerHTML = taskShares
+    .map((share) => {
+      const user = share.sharedWith || {};
+      const username = user.username || "";
+      return `
+        <div class="share-item">
+          <div class="share-user">
+            <strong>${escapeHtml(user.displayName || username)}</strong>
+            <span>@${escapeHtml(username)}</span>
+          </div>
+          <select data-share-id="${share.id}" data-username="${escapeHtml(username)}">
+            <option value="VIEW" ${share.permission === "VIEW" ? "selected" : ""}>View Only</option>
+            <option value="EDIT" ${share.permission === "EDIT" ? "selected" : ""}>Can Edit</option>
+          </select>
+          <button type="button" class="btn btn-danger" data-remove-share-id="${share.id}">Remove</button>
+        </div>
+      `;
+    })
+    .join("");
+}
+
+function setShareValidation(message, isValid) {
+  elements.shareValidation.textContent = message;
+  elements.shareValidation.classList.toggle("hidden", isValid);
 }
 
 function isVisible(element) {
@@ -737,7 +1100,7 @@ function renderFlashNotes() {
   }
 
   if (!flashNotes.length) {
-    elements.flashNoteList.innerHTML = "<p class=\"knowledge-empty\">No flash notes yet</p>";
+    elements.flashNoteList.innerHTML = "<p class=\"knowledge-empty\">暂无Flash Note</p>";
     return;
   }
 
@@ -798,7 +1161,7 @@ async function removeFlashNote(noteId) {
   }
   const targetNote = flashNotes.find((item) => item.id === noteId);
   const preview = (targetNote?.noteContent || "").trim().slice(0, 24);
-  const tip = preview ? `Delete flash note "${preview}${preview.length >= 24 ? "..." : ""}"?` : "Delete this flash note?";
+  const tip = preview ? `确认Delete闪念「${preview}${preview.length >= 24 ? "..." : ""}"?` : "确认Delete这条闪念吗？";
   const confirmed = await openConfirmModal(tip);
   if (!confirmed) {
     return;
@@ -813,7 +1176,7 @@ async function removeFlashNote(noteId) {
     if (editingFlashNoteId === noteId) {
       resetFlashNoteForm();
     }
-    showToast("Flash note deleted");
+    showToast("Flash Notedeleted");
     await loadFlashNotes();
   } catch (error) {
     showToast(error.message, true);
@@ -824,24 +1187,34 @@ async function removeFlashNote(noteId) {
 }
 
 function renderTable() {
-  if (!tasks.length) {
+  const displayTasks = getDisplayTasks();
+
+  if (!displayTasks.length) {
     elements.taskTableBody.innerHTML = "";
+    elements.emptyState.textContent = tasks.length && state.hideCompleted
+      ? "Completed projects are hidden."
+      : "No projects available.";
     elements.emptyState.classList.remove("hidden");
     return;
   }
 
   elements.emptyState.classList.add("hidden");
 
-  const rowsHtml = tasks
+  const rowsHtml = displayTasks
     .map((task) => {
       const phases = ensureTaskPhases(task);
+      const noteActionLabel = getTaskNoteActionLabel(task.id);
+      const noteActionBusy = addingNoteTaskId === task.id || editingNoteTaskId === task.id;
+      const editable = canEditTask(task);
+      const owner = canManageShares(task);
 
       return `
         <tr>
           <td data-label="Project">
             <div class="project-title">
-              ${isStuckProject(task) ? `<span class="stuck-indicator" title="This project has not been updated for over 30 days" aria-label="Stalled project">⚠</span>` : ""}
+              ${isStuckProject(task) ? `<span class="stuck-indicator" title="This project has not been updated for over 30 days" aria-label="Stale project">⚠</span>` : ""}
               ${escapeHtml(task.taskTitle || "Untitled Project")}
+              ${task.sharedWithCurrentUser ? `<span class="shared-badge">Shared by ${escapeHtml(task.ownerUsername || "user")}${task.accessLevel === "VIEW" ? " · View" : " · Edit"}</span>` : ""}
             </div>
             <div class="project-meta">
               <span class="priority-badge priority-${resolvePriority(task.priority).toLowerCase()}">${formatPriorityLabel(task.priority)}</span>
@@ -849,23 +1222,24 @@ function renderTable() {
             <div class="project-desc">${escapeHtml(task.taskDescription || "(No description)")}</div>
             ${renderTaskNotes(task.id, task.notes)}
           </td>
-          <td data-label="Phases">${renderPhaseChips(task.id, phases)}</td>
+          <td data-label="Phase ">${renderPhaseChips(task.id, phases)}</td>
           <td data-label="Progress / Dates">${renderProgressAndDates(task)}</td>
           <td data-label="Actions">
             <div class="table-actions">
-              <button class="btn btn-secondary" data-action="edit" data-id="${task.id}">Edit</button>
+              <button class="btn btn-secondary" data-action="edit" data-id="${task.id}" ${editable ? "" : "disabled"}>Edit</button>
               <button class="btn btn-secondary" data-action="details" data-id="${task.id}">Details</button>
-              <button class="btn btn-secondary" data-action="add-phase" data-id="${task.id}" ${addingPhaseTaskId === task.id ? "disabled" : ""}>
+              <button class="btn btn-secondary" data-action="share" data-id="${task.id}" ${owner ? "" : "disabled"}>Share</button>
+              <button class="btn btn-secondary" data-action="add-phase" data-id="${task.id}" ${(editable && addingPhaseTaskId !== task.id && movingPhaseTaskId !== task.id) ? "" : "disabled"}>
                 ${addingPhaseTaskId === task.id ? "Adding..." : "Add Phase"}
               </button>
-              <button class="btn btn-secondary" data-action="add-note" data-id="${task.id}" ${(addingNoteTaskId === task.id || editingNoteTaskId === task.id) ? "disabled" : ""}>
-                ${(addingNoteTaskId === task.id || editingNoteTaskId === task.id) ? "Processing..." : "Add Note"}
+              <button class="btn btn-secondary" data-action="add-note" data-id="${task.id}" ${(editable && !noteActionBusy) ? "" : "disabled"}>
+                ${noteActionLabel}
               </button>
               <button
                 class="btn btn-danger ${deletingTaskId === task.id ? "delete-loading" : ""}"
                 data-action="delete"
                 data-id="${task.id}"
-                ${deletingTaskId === task.id ? "disabled" : ""}
+                ${(owner && deletingTaskId !== task.id) ? "" : "disabled"}
               >
                 ${deletingTaskId === task.id ? "Deleting..." : "Delete"}
               </button>
@@ -877,6 +1251,46 @@ function renderTable() {
     .join("");
 
   elements.taskTableBody.innerHTML = rowsHtml;
+}
+
+function getDisplayTasks() {
+  const visibleTasks = state.hideCompleted
+    ? tasks.filter((task) => !isCompletedTask(task))
+    : [...tasks];
+
+  return visibleTasks.sort((a, b) => Number(isCompletedTask(a)) - Number(isCompletedTask(b)));
+}
+
+function isCompletedTask(task) {
+  return Number(task.overallProgress) >= 100;
+}
+
+function canEditTask(task) {
+  return task?.accessLevel === "OWNER" || task?.accessLevel === "EDIT" || task?.ownedByCurrentUser === true;
+}
+
+function canManageShares(task) {
+  return task?.accessLevel === "OWNER" || task?.ownedByCurrentUser === true;
+}
+
+function updateHideCompletedButton() {
+  if (!elements.hideCompletedBtn) {
+    return;
+  }
+
+  elements.hideCompletedBtn.textContent = state.hideCompleted ? "Show Completed" : "Hide Completed";
+  elements.hideCompletedBtn.setAttribute("aria-pressed", String(state.hideCompleted));
+  elements.hideCompletedBtn.classList.toggle("is-active", state.hideCompleted);
+}
+
+function getTaskNoteActionLabel(taskId) {
+  if (addingNoteTaskId === taskId) {
+    return "Adding...";
+  }
+  if (editingNoteTaskId === taskId) {
+    return "Saving...";
+  }
+  return "Add Note";
 }
 
 function renderStats() {
@@ -898,7 +1312,7 @@ function renderProgressRanking() {
     .slice(0, 5);
 
   if (!topProjects.length) {
-    elements.progressRankingList.innerHTML = `<li class="dashboard-empty">No projects yet</li>`;
+    elements.progressRankingList.innerHTML = `<li class="dashboard-empty">No project data</li>`;
     return;
   }
 
@@ -928,7 +1342,7 @@ function renderRecentUpdatedProjects() {
     .slice(0, 6);
 
   if (!recent.length) {
-    elements.recentUpdatedList.innerHTML = `<li class="dashboard-empty">No updates in the last 7 days</li>`;
+    elements.recentUpdatedList.innerHTML = `<li class="dashboard-empty">No projects updated in the last 7 days</li>`;
     return;
   }
 
@@ -992,9 +1406,13 @@ function renderPhaseInputs() {
               <option value="DOING" ${phase.phaseStatus === "DOING" ? "selected" : ""}>DOING</option>
               <option value="DONE" ${phase.phaseStatus === "DONE" ? "selected" : ""}>DONE</option>
             </select>
-            ${showRemove
-              ? `<button type="button" class="btn btn-danger" data-remove-index="${index}">Remove</button>`
-              : `<span class="phase-default-tag">At least 1 phase required</span>`}
+            <div class="phase-actions">
+              <button type="button" class="btn btn-secondary phase-move-btn" data-move-index="${index}" data-move-direction="up" title="Move up" ${index === 0 ? "disabled" : ""}>↑</button>
+              <button type="button" class="btn btn-secondary phase-move-btn" data-move-index="${index}" data-move-direction="down" title="Move down" ${index === currentPhases.length - 1 ? "disabled" : ""}>↓</button>
+              ${showRemove
+                ? `<button type="button" class="btn btn-danger" data-remove-index="${index}">Remove</button>`
+                : `<span class="phase-default-tag">At least 1 phase required</span>`}
+            </div>
           </div>
           <textarea class="phase-description" maxlength="2000" placeholder="Phase Description (optional)">${escapeHtml(phase.phaseDescription || "")}</textarea>
         </div>
@@ -1068,6 +1486,29 @@ function clonePhases(phases) {
   }));
 }
 
+function movePhaseInList(phases, index, direction) {
+  const targetIndex = direction === "up" ? index - 1 : index + 1;
+  if (index < 0 || targetIndex < 0 || index >= phases.length || targetIndex >= phases.length) {
+    return normalizePhaseList(phases);
+  }
+
+  const nextPhases = [...phases];
+  [nextPhases[index], nextPhases[targetIndex]] = [nextPhases[targetIndex], nextPhases[index]];
+  return normalizePhaseList(nextPhases);
+}
+
+function buildTaskPayload(task, phases) {
+  return {
+    taskTitle: task.taskTitle,
+    taskDescription: task.taskDescription || "",
+    recentDecisions: task.recentDecisions || "",
+    recentExperiments: task.recentExperiments || "",
+    knowledgeHighlights: task.knowledgeHighlights || "",
+    priority: resolvePriority(task.priority),
+    phases: normalizePhaseList(phases)
+  };
+}
+
 async function handleSubmit(event) {
   event.preventDefault();
 
@@ -1082,7 +1523,7 @@ async function handleSubmit(event) {
   };
 
   if (!payload.taskTitle) {
-    showToast("Project title cannot be empty", true);
+    showToast("Project title is required", true);
     elements.taskTitle.focus();
     return;
   }
@@ -1096,7 +1537,7 @@ async function handleSubmit(event) {
         },
         body: JSON.stringify(payload)
       });
-      showToast("Project updated successfully");
+      showToast("Project updated");
     } else {
       await request(TASKS_API_URL, {
         method: "POST",
@@ -1105,7 +1546,7 @@ async function handleSubmit(event) {
         },
         body: JSON.stringify(payload)
       });
-      showToast("Project created successfully");
+      showToast("Project created");
     }
 
     closeTaskModal(true);
@@ -1118,7 +1559,7 @@ async function handleSubmit(event) {
 async function handleAddPhaseSubmit(event) {
   event.preventDefault();
 
-  if (pendingAddPhaseTaskId === null || addingPhaseTaskId !== null || deletingTaskId !== null) {
+  if (pendingAddPhaseTaskId === null || addingPhaseTaskId !== null || movingPhaseTaskId !== null || deletingTaskId !== null) {
     return;
   }
 
@@ -1145,15 +1586,7 @@ async function handleAddPhaseSubmit(event) {
     sortOrder: phases.length + 1
   });
 
-  const payload = {
-    taskTitle: task.taskTitle,
-    taskDescription: task.taskDescription || "",
-    recentDecisions: task.recentDecisions || "",
-    recentExperiments: task.recentExperiments || "",
-    knowledgeHighlights: task.knowledgeHighlights || "",
-    priority: resolvePriority(task.priority),
-    phases
-  };
+  const payload = buildTaskPayload(task, phases);
 
   try {
     addingPhaseTaskId = taskId;
@@ -1168,7 +1601,7 @@ async function handleAddPhaseSubmit(event) {
       body: JSON.stringify(payload)
     });
 
-    showToast("Phase added successfully");
+    showToast("Add Phase成功");
     await loadTasks();
   } catch (error) {
     showToast(error.message, true);
@@ -1187,6 +1620,7 @@ async function handleEditPhaseSubmit(event) {
     pendingEditPhaseIndex === null ||
     editingPhaseTaskId !== null ||
     addingPhaseTaskId !== null ||
+    movingPhaseTaskId !== null ||
     deletingTaskId !== null
   ) {
     return;
@@ -1219,15 +1653,7 @@ async function handleEditPhaseSubmit(event) {
     sortOrder: phaseIndex + 1
   };
 
-  const payload = {
-    taskTitle: task.taskTitle,
-    taskDescription: task.taskDescription || "",
-    recentDecisions: task.recentDecisions || "",
-    recentExperiments: task.recentExperiments || "",
-    knowledgeHighlights: task.knowledgeHighlights || "",
-    priority: resolvePriority(task.priority),
-    phases
-  };
+  const payload = buildTaskPayload(task, phases);
 
   try {
     editingPhaseTaskId = taskId;
@@ -1242,13 +1668,60 @@ async function handleEditPhaseSubmit(event) {
       body: JSON.stringify(payload)
     });
 
-    showToast("Phase updated successfully");
+    showToast("Phase updated");
     await loadTasks();
   } catch (error) {
     showToast(error.message, true);
   } finally {
     editingPhaseTaskId = null;
     resetEditPhaseForm();
+    renderTable();
+  }
+}
+
+async function moveExistingTaskPhase(taskId, phaseIndex, direction) {
+  if (
+    movingPhaseTaskId !== null ||
+    editingPhaseTaskId !== null ||
+    addingPhaseTaskId !== null ||
+    deletingTaskId !== null ||
+    Number.isNaN(phaseIndex)
+  ) {
+    return;
+  }
+
+  const task = tasks.find((item) => item.id === taskId);
+  if (!task) {
+    showToast("Project not found", true);
+    return;
+  }
+
+  const phases = clonePhases(ensureTaskPhases(task));
+  const targetIndex = direction === "up" ? phaseIndex - 1 : phaseIndex + 1;
+  if (targetIndex < 0 || targetIndex >= phases.length) {
+    return;
+  }
+
+  const movedPhases = movePhaseInList(phases, phaseIndex, direction);
+
+  try {
+    movingPhaseTaskId = taskId;
+    renderTable();
+
+    await request(`${TASKS_API_URL}/${taskId}`, {
+      method: "PUT",
+      headers: {
+        "Content-Type": "application/json"
+      },
+      body: JSON.stringify(buildTaskPayload(task, movedPhases))
+    });
+
+    showToast("Phase order updated");
+    await loadTasks();
+  } catch (error) {
+    showToast(error.message, true);
+  } finally {
+    movingPhaseTaskId = null;
     renderTable();
   }
 }
@@ -1278,6 +1751,7 @@ async function handleAddNoteSubmit(event) {
     ? `${TASKS_API_URL}/${taskId}/notes/${pendingEditNoteId}`
     : `${TASKS_API_URL}/${taskId}/notes`;
   const requestMethod = editingNote ? "PUT" : "POST";
+  const idleSubmitText = editingNote ? "Save Note" : "Add Note";
 
   try {
     if (editingNote) {
@@ -1286,6 +1760,8 @@ async function handleAddNoteSubmit(event) {
       addingNoteTaskId = taskId;
     }
     elements.addNoteConfirmBtn.disabled = true;
+    elements.addNoteConfirmBtn.textContent = editingNote ? "Saving..." : "Adding...";
+    renderTable();
 
     await request(requestUrl, {
       method: requestMethod,
@@ -1299,7 +1775,7 @@ async function handleAddNoteSubmit(event) {
     });
 
     closeAddNoteModal(true);
-    showToast(editingNote ? "Note updated successfully" : "Note added successfully");
+    showToast(editingNote ? "Note updated" : "Note added");
     await loadTasks();
   } catch (error) {
     showToast(error.message, true);
@@ -1307,6 +1783,8 @@ async function handleAddNoteSubmit(event) {
     addingNoteTaskId = null;
     editingNoteTaskId = null;
     elements.addNoteConfirmBtn.disabled = false;
+    elements.addNoteConfirmBtn.textContent = isVisible(elements.addNoteModal) ? idleSubmitText : "Add Note";
+    renderTable();
   }
 }
 
@@ -1362,7 +1840,7 @@ async function handleFlashNoteSubmit(event) {
 function validateAddPhaseForm() {
   const phaseName = elements.addPhaseName.value.trim();
   if (!phaseName) {
-    setAddPhaseValidation("Phase name is required", false);
+    setAddPhaseValidation("Phase 名称不能为空", false);
     return false;
   }
 
@@ -1372,7 +1850,7 @@ function validateAddPhaseForm() {
       const normalizedInput = normalizePhaseName(phaseName);
       const duplicated = ensureTaskPhases(task).some((phase) => normalizePhaseName(phase.phaseName) === normalizedInput);
       if (duplicated) {
-        setAddPhaseValidation("Phase name already exists. Please choose another name.", false);
+        setAddPhaseValidation("Phase 名称已存在，请更换名称", false);
         return false;
       }
     }
@@ -1397,7 +1875,7 @@ function validateFlashNoteForm(showError) {
   const shouldShowError = showError !== false;
   if (!content) {
     if (shouldShowError) {
-      setFlashNoteValidation("Flash note content is required", false);
+      setFlashNoteValidation("闪念内容不能为空", false);
     } else {
       setFlashNoteValidation("", true);
     }
@@ -1432,7 +1910,7 @@ function setAddPhaseValidation(message, isValid) {
 function validateEditPhaseForm() {
   const phaseName = elements.editPhaseName.value.trim();
   if (!phaseName) {
-    setEditPhaseValidation("Phase name is required", false);
+    setEditPhaseValidation("Phase 名称不能为空", false);
     return false;
   }
 
@@ -1444,7 +1922,7 @@ function validateEditPhaseForm() {
         index !== pendingEditPhaseIndex && normalizePhaseName(phase.phaseName) === normalizedInput
       ));
       if (duplicated) {
-        setEditPhaseValidation("Phase name already exists. Please choose another name.", false);
+        setEditPhaseValidation("Phase 名称已存在，请更换名称", false);
         return false;
       }
     }
@@ -1471,8 +1949,8 @@ async function removeTask(taskId) {
   }
 
   const task = tasks.find((item) => item.id === taskId);
-  const projectName = task?.taskTitle || `ID ${taskId}`;
-  const confirmed = await openConfirmModal(`Delete project "${projectName}"? This action cannot be undone.`);
+  const projectName = task?.taskTitle || `编号 ${taskId}`;
+  const confirmed = await openConfirmModal(`Delete project "${projectName}"? This cannot be undone.`);
   if (!confirmed) {
     return;
   }
@@ -1492,7 +1970,7 @@ async function removeTask(taskId) {
       closeDetailDrawer();
     }
 
-    showToast("Project deleted successfully");
+    showToast("Project deleted");
     await loadTasks();
   } catch (error) {
     showToast(error.message, true);
@@ -1527,7 +2005,7 @@ async function removeTaskNote(taskId, noteId) {
     await request(`${TASKS_API_URL}/${taskId}/notes/${noteId}`, {
       method: "DELETE"
     });
-    showToast("Note deleted");
+    showToast(" noteDelete成功");
     await loadTasks();
   } catch (error) {
     showToast(error.message, true);
@@ -1538,12 +2016,24 @@ async function removeTaskNote(taskId, noteId) {
 }
 
 async function request(url, options = {}) {
-  const response = await fetch(url, options);
+  const headers = new Headers(options.headers || {});
+  if (authToken && !headers.has("Authorization")) {
+    headers.set("Authorization", `Bearer ${authToken}`);
+  }
+
+  const response = await fetch(url, {
+    ...options,
+    headers
+  });
   const isJson = (response.headers.get("content-type") || "").includes("application/json");
   const body = isJson ? await response.json() : null;
 
   if (!response.ok || !body?.success) {
-    const message = body?.message || `Request failed (${response.status})`;
+    if (response.status === 401 && !url.includes("/auth/login") && !url.includes("/auth/register")) {
+      clearAuth();
+      showAuthGate();
+    }
+    const message = body?.message || `请求失败（${response.status}）`;
     const detail = body?.errors ? Object.values(body.errors).join("; ") : "";
     const localizedMessage = localizeMessage(message);
     throw new Error(detail ? `${localizedMessage}: ${detail}` : localizedMessage);
@@ -1554,13 +2044,34 @@ async function request(url, options = {}) {
 
 function localizeMessage(message) {
   if (message.startsWith("Task not found with id")) {
-    return "Project not found";
+    return "Task not found";
   }
   if (message.startsWith("Task note not found with id")) {
     return "Note not found";
   }
   if (message.startsWith("Flash note not found with id")) {
     return "Flash note not found";
+  }
+  if (message.startsWith("User already exists")) {
+    return "该user名已存在";
+  }
+  if (message.startsWith("User not found")) {
+    return "User not found";
+  }
+  if (message === "Invalid username or password") {
+    return "user名或密码错误";
+  }
+  if (message === "Authentication required") {
+    return "请先Sign In";
+  }
+  if (message === "Only the owner can perform this action") {
+    return "Only the owner can perform this action";
+  }
+  if (message === "You do not have permission to edit this task") {
+    return "You do not have permission to edit this task";
+  }
+  if (message === "Cannot share a task with yourself") {
+    return "不能Share给自己";
   }
   if (message === "Validation failed") {
     return "Validation failed";
@@ -1580,6 +2091,9 @@ function localizeMessage(message) {
   if (message === "noteContent must be at most 20000 characters") {
     return "Note content must be at most 20000 characters";
   }
+  if (message === "share permission must be one of VIEW, EDIT") {
+    return "Share权限必须是 VIEW 或 EDIT";
+  }
   if (message === "Internal server error") {
     return "Internal server error";
   }
@@ -1591,7 +2105,7 @@ function ensureTaskPhases(task) {
     return normalizePhaseList(task.phases);
   }
 
-  // Backward compatibility for legacy 3-phase fields
+  // 兼容旧接口的固定三Phase 字段
   const fallback = [
     { phaseName: "Phase 1", phaseDescription: "", phaseStatus: task.phase1Status || "TODO" },
     { phaseName: "Phase 2", phaseDescription: "", phaseStatus: task.phase2Status || "TODO" },
@@ -1605,24 +2119,30 @@ function renderPhaseChips(taskId, phases) {
     .map((phase, index) => {
       const doingClass = phase.phaseStatus === "DOING" ? "phase-chip-doing" : "";
       const arrow = index < phases.length - 1 ? `<span class="phase-flow-arrow" aria-hidden="true">↓</span>` : "";
-      const disabled = editingPhaseTaskId === taskId ? "disabled" : "";
+      const disabled = (editingPhaseTaskId === taskId || movingPhaseTaskId === taskId) ? "disabled" : "";
       const phaseTitle = phase.phaseDescription
-        ? `Click to edit phase\n${phase.phaseDescription}`
-        : "Click to edit phase";
+        ? `点击EditPhase \n${phase.phaseDescription}`
+        : "点击EditPhase ";
       return `
         <div class="phase-flow-item">
-          <button
-            type="button"
-            class="phase-chip phase-chip-button ${doingClass}"
-            data-action="edit-phase"
-            data-id="${taskId}"
-            data-phase-index="${index}"
-            title="${escapeHtml(phaseTitle)}"
-            ${disabled}
-          >
-            <span class="phase-chip-name">${escapeHtml(phase.phaseName)}</span>
-            ${renderStatus(phase.phaseStatus)}
-          </button>
+          <div class="phase-chip-row">
+            <button
+              type="button"
+              class="phase-chip phase-chip-button ${doingClass}"
+              data-action="edit-phase"
+              data-id="${taskId}"
+              data-phase-index="${index}"
+              title="${escapeHtml(phaseTitle)}"
+              ${disabled}
+            >
+              <span class="phase-chip-name">${escapeHtml(phase.phaseName)}</span>
+              ${renderStatus(phase.phaseStatus)}
+            </button>
+            <div class="phase-order-actions" aria-label="Adjust phase order">
+              <button type="button" class="btn btn-secondary phase-order-btn" data-action="move-phase" data-id="${taskId}" data-phase-index="${index}" data-direction="up" title="Move up" ${(index === 0 || disabled) ? "disabled" : ""}>↑</button>
+              <button type="button" class="btn btn-secondary phase-order-btn" data-action="move-phase" data-id="${taskId}" data-phase-index="${index}" data-direction="down" title="Move down" ${(index === phases.length - 1 || disabled) ? "disabled" : ""}>↓</button>
+            </div>
+          </div>
           ${phase.phaseDescription ? `<p class="phase-chip-description">${escapeHtml(phase.phaseDescription)}</p>` : ""}
           ${arrow}
         </div>
@@ -1693,7 +2213,7 @@ function formatNoteTypeLabel(noteType) {
     RECENT_EXPERIMENTS: "Recent Experiments",
     KNOWLEDGE_HIGHLIGHTS: "Knowledge Highlights"
   };
-  return labelMap[noteType] || noteType || "Note";
+  return labelMap[noteType] || noteType || " note";
 }
 
 function renderProgressBar(progress, extraClass = "") {
@@ -1714,11 +2234,11 @@ function renderProgressAndDates(task) {
     <div class="progress-date-stack">
       ${renderProgressBar(task.overallProgress)}
       <div class="progress-date-row">
-        <span>Created:</span>
+        <span>创建：</span>
         <strong>${formatDate(task.createdAt)}</strong>
       </div>
       <div class="progress-date-row">
-        <span>Updated:</span>
+        <span>更新：</span>
         <strong>${formatDate(task.updatedAt)}</strong>
       </div>
     </div>
@@ -1897,12 +2417,12 @@ function renderDetailDrawer(task) {
   const phases = ensureTaskPhases(task);
   elements.detailDrawerTitle.textContent = `Project Details: ${task.taskTitle || "Untitled Project"}`;
   elements.detailMeta.innerHTML = `
-    <div class="detail-meta-item"><span>Priority</span><strong>${formatPriorityLabel(task.priority)}</strong></div>
-    <div class="detail-meta-item"><span>Created Date</span><strong>${formatDate(task.createdAt)}</strong></div>
-    <div class="detail-meta-item"><span>Updated Date</span><strong>${formatDate(task.updatedAt)}</strong></div>
+    <div class="detail-meta-item"><span>优先度</span><strong>${formatPriorityLabel(task.priority)}</strong></div>
+    <div class="detail-meta-item"><span>创建日期</span><strong>${formatDate(task.createdAt)}</strong></div>
+    <div class="detail-meta-item"><span>更新日期</span><strong>${formatDate(task.updatedAt)}</strong></div>
   `;
   elements.detailProgress.innerHTML = `
-    <h4>Overall Progress</h4>
+    <h4>总进度</h4>
     ${renderProgressBar(task.overallProgress)}
   `;
   renderDetailPhases(phases);
@@ -1911,7 +2431,7 @@ function renderDetailDrawer(task) {
 
 function renderDetailPhases(phases) {
   if (!phases.length) {
-    elements.detailPhases.innerHTML = "<p class=\"knowledge-empty\">No phases</p>";
+    elements.detailPhases.innerHTML = "<p class=\"knowledge-empty\">暂无Phase </p>";
     return;
   }
 
@@ -1928,7 +2448,7 @@ function renderDetailPhases(phases) {
     .join("");
 
   elements.detailPhases.innerHTML = `
-    <h4>Phase List</h4>
+    <h4>Phase 列表</h4>
     <div class="detail-phase-list">${phaseItems}</div>
   `;
 }
@@ -1952,7 +2472,7 @@ function refreshKnowledgeToggleButtons() {
   elements.knowledgeToggleButtons.forEach((button) => {
     const sectionKey = button.dataset.previewSection;
     const isPreview = Boolean(sectionKey && detailPreviewState[sectionKey]);
-    button.textContent = isPreview ? "Raw" : "Preview";
+    button.textContent = isPreview ? "原文" : "预览";
     button.classList.toggle("preview-active", isPreview);
   });
 }
@@ -1960,7 +2480,7 @@ function refreshKnowledgeToggleButtons() {
 function renderKnowledgeContent(container, text, isPreview) {
   const content = String(text || "").trim();
   if (!content) {
-    container.innerHTML = "<p class=\"knowledge-empty\">No content</p>";
+    container.innerHTML = "<p class=\"knowledge-empty\">暂无内容</p>";
     return;
   }
 
@@ -2105,7 +2625,7 @@ function toggleTheme() {
 function applyTheme(theme, persist) {
   document.documentElement.setAttribute("data-theme", theme);
   if (elements.themeToggleBtn) {
-    elements.themeToggleBtn.textContent = theme === "dark" ? "Light Mode" : "Dark Mode";
+    elements.themeToggleBtn.textContent = theme === "dark" ? "浅色模式" : "深色模式";
   }
 
   if (persist) {

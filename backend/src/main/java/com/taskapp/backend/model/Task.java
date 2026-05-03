@@ -7,6 +7,7 @@ public class Task {
     private Long id;
     private String taskTitle;
     private String taskDescription;
+    private Long ownerUserId;
     private ProjectPriority priority;
     private PhaseStatus phase1Status;
     private PhaseStatus phase2Status;
@@ -37,6 +38,14 @@ public class Task {
 
     public void setTaskDescription(String taskDescription) {
         this.taskDescription = taskDescription;
+    }
+
+    public Long getOwnerUserId() {
+        return ownerUserId;
+    }
+
+    public void setOwnerUserId(Long ownerUserId) {
+        this.ownerUserId = ownerUserId;
     }
 
     public ProjectPriority getPriority() {

@@ -32,24 +32,26 @@ public class FlashNoteRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public List<FlashNote> findAll() {
+    public List<FlashNote> findAll(Long ownerUserId) {
         return jdbcTemplate.query(
                 """
                 SELECT id, note_content, created_at, updated_at
                 FROM flash_notes
-                WHERE is_deleted = 0
+                WHERE is_deleted = 0 AND owner_user_id = ?
                 ORDER BY updated_at DESC, id DESC
                 """,
-                flashNoteRowMapper
+                flashNoteRowMapper,
+                ownerUserId
         );
     }
 
-    public FlashNote save(String noteContent, LocalDateTime now) {
+    public FlashNote save(Long ownerUserId, String noteContent, LocalDateTime now) {
         jdbcTemplate.update(
                 """
-                INSERT INTO flash_notes (note_content, created_at, updated_at)
-                VALUES (?, ?, ?)
+                INSERT INTO flash_notes (owner_user_id, note_content, created_at, updated_at)
+                VALUES (?, ?, ?, ?)
                 """,
+                ownerUserId,
                 normalizeText(noteContent),
                 formatDateTime(now),
                 formatDateTime(now)
@@ -59,25 +61,27 @@ public class FlashNoteRepository {
                 """
                 SELECT id, note_content, created_at, updated_at
                 FROM flash_notes
-                WHERE is_deleted = 0
+                WHERE is_deleted = 0 AND owner_user_id = ?
                 ORDER BY id DESC
                 LIMIT 1
                 """,
-                flashNoteRowMapper
+                flashNoteRowMapper,
+                ownerUserId
         );
         return rows.getFirst();
     }
 
-    public Optional<FlashNote> findById(Long noteId) {
+    public Optional<FlashNote> findById(Long ownerUserId, Long noteId) {
         List<FlashNote> rows = jdbcTemplate.query(
                 """
                 SELECT id, note_content, created_at, updated_at
                 FROM flash_notes
-                WHERE id = ? AND is_deleted = 0
+                WHERE id = ? AND owner_user_id = ? AND is_deleted = 0
                 LIMIT 1
                 """,
                 flashNoteRowMapper,
-                noteId
+                noteId,
+                ownerUserId
         );
         if (rows.isEmpty()) {
             return Optional.empty();
@@ -85,33 +89,35 @@ public class FlashNoteRepository {
         return Optional.of(rows.getFirst());
     }
 
-    public FlashNote update(Long noteId, String noteContent, LocalDateTime now) {
+    public FlashNote update(Long ownerUserId, Long noteId, String noteContent, LocalDateTime now) {
         int affectedRows = jdbcTemplate.update(
                 """
                 UPDATE flash_notes
                 SET note_content = ?, updated_at = ?
-                WHERE id = ? AND is_deleted = 0
+                WHERE id = ? AND owner_user_id = ? AND is_deleted = 0
                 """,
                 normalizeText(noteContent),
                 formatDateTime(now),
-                noteId
+                noteId,
+                ownerUserId
         );
         if (affectedRows <= 0) {
             return null;
         }
-        return findById(noteId).orElse(null);
+        return findById(ownerUserId, noteId).orElse(null);
     }
 
-    public boolean softDelete(Long noteId, LocalDateTime now) {
+    public boolean softDelete(Long ownerUserId, Long noteId, LocalDateTime now) {
         int affectedRows = jdbcTemplate.update(
                 """
                 UPDATE flash_notes
                 SET is_deleted = 1, deleted_at = ?, updated_at = ?
-                WHERE id = ? AND is_deleted = 0
+                WHERE id = ? AND owner_user_id = ? AND is_deleted = 0
                 """,
                 formatDateTime(now),
                 formatDateTime(now),
-                noteId
+                noteId,
+                ownerUserId
         );
         return affectedRows > 0;
     }

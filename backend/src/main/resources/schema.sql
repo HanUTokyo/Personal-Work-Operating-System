@@ -1,7 +1,19 @@
+CREATE TABLE IF NOT EXISTS users (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    username TEXT NOT NULL UNIQUE,
+    display_name TEXT NOT NULL,
+    password_hash TEXT NOT NULL,
+    password_salt TEXT NOT NULL,
+    auth_token TEXT,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS tasks (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     task_title TEXT NOT NULL,
     task_description TEXT,
+    owner_user_id INTEGER,
     phase1_status TEXT NOT NULL,
     phase2_status TEXT NOT NULL,
     phase3_status TEXT NOT NULL,
@@ -10,7 +22,8 @@ CREATE TABLE IF NOT EXISTS tasks (
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,
     is_deleted INTEGER NOT NULL DEFAULT 0,
-    deleted_at DATETIME
+    deleted_at DATETIME,
+    CONSTRAINT fk_tasks_owner FOREIGN KEY(owner_user_id) REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS task_phases (
@@ -50,18 +63,38 @@ CREATE TABLE IF NOT EXISTS task_notes (
 
 CREATE TABLE IF NOT EXISTS flash_notes (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    owner_user_id INTEGER,
     note_content TEXT NOT NULL,
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,
     is_deleted INTEGER NOT NULL DEFAULT 0,
-    deleted_at DATETIME
+    deleted_at DATETIME,
+    CONSTRAINT fk_flash_notes_owner FOREIGN KEY(owner_user_id) REFERENCES users(id)
 );
 
+CREATE TABLE IF NOT EXISTS task_shares (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id INTEGER NOT NULL,
+    shared_with_user_id INTEGER NOT NULL,
+    permission TEXT NOT NULL,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    CONSTRAINT fk_task_shares_task FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+    CONSTRAINT fk_task_shares_user FOREIGN KEY(shared_with_user_id) REFERENCES users(id) ON DELETE CASCADE,
+    CONSTRAINT uq_task_share_user UNIQUE(task_id, shared_with_user_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+CREATE INDEX IF NOT EXISTS idx_users_auth_token ON users(auth_token);
 CREATE INDEX IF NOT EXISTS idx_tasks_title ON tasks(task_title);
+CREATE INDEX IF NOT EXISTS idx_tasks_owner_user_id ON tasks(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_updated_at ON tasks(updated_at);
 CREATE INDEX IF NOT EXISTS idx_tasks_progress ON tasks(overall_progress);
 CREATE INDEX IF NOT EXISTS idx_task_phases_task_id ON task_phases(task_id);
 CREATE INDEX IF NOT EXISTS idx_task_knowledge_updated_at ON task_knowledge(updated_at);
 CREATE INDEX IF NOT EXISTS idx_task_notes_task_id ON task_notes(task_id);
 CREATE INDEX IF NOT EXISTS idx_task_notes_created_at ON task_notes(created_at);
+CREATE INDEX IF NOT EXISTS idx_flash_notes_owner_user_id ON flash_notes(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_flash_notes_updated_at ON flash_notes(updated_at);
+CREATE INDEX IF NOT EXISTS idx_task_shares_task_id ON task_shares(task_id);
+CREATE INDEX IF NOT EXISTS idx_task_shares_user_id ON task_shares(shared_with_user_id);

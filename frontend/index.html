@@ -7,13 +7,49 @@
   <link rel="stylesheet" href="style.css?v=20260420-mobile" />
 </head>
 <body>
+  <div id="authGate" class="auth-gate hidden">
+    <section class="panel auth-panel">
+      <div class="brand-heading auth-brand">
+        <div class="brand-logo" aria-label="P&F logo">P&amp;F</div>
+        <div>
+          <h1 id="authTitle">Sign In</h1>
+          <p>After signing in, you only see your own projects and projects shared with you.</p>
+        </div>
+      </div>
+      <form id="authForm" class="auth-form" novalidate>
+        <label>
+          Username
+          <input id="authUsername" type="text" maxlength="60" autocomplete="username" required />
+        </label>
+        <label id="authDisplayNameLabel" class="hidden">
+          Display Name
+          <input id="authDisplayName" type="text" maxlength="100" autocomplete="name" />
+        </label>
+        <label>
+          Password
+          <input id="authPassword" type="password" maxlength="200" autocomplete="current-password" required />
+        </label>
+        <p id="authValidation" class="add-phase-validation hidden"></p>
+        <div class="form-actions">
+          <button id="authSubmitBtn" type="submit" class="btn btn-primary">Sign In</button>
+          <button id="authModeToggleBtn" type="button" class="btn btn-secondary">Create Account</button>
+        </div>
+      </form>
+    </section>
+  </div>
+
   <div class="page">
     <header class="page-header">
-      <div>
-        <h1>Project Progress Management</h1>
-        <p>Manage projects with dynamic phases, search, sorting, and knowledge notes.</p>
+      <div class="brand-heading">
+        <div class="brand-logo" aria-label="P&F logo">P&amp;F</div>
+        <div>
+          <h1>Project Progress Management</h1>
+          <p>Manage projects with dynamic phases, search, sorting, and knowledge notes.</p>
+        </div>
       </div>
       <div class="header-actions">
+        <span id="currentUserLabel" class="current-user-label"></span>
+        <button id="logoutBtn" class="btn btn-secondary" type="button">Sign Out</button>
         <button id="openFlashNoteModalBtn" class="btn btn-secondary" type="button">Flash Notes</button>
         <button id="themeToggleBtn" class="btn btn-secondary" type="button">Dark Mode</button>
         <a class="btn btn-secondary lang-switch-btn" href="zh.html">Switch to Chinese</a>
@@ -26,7 +62,10 @@
         <h2 id="doingCount">0</h2>
       </article>
       <article class="stat-card">
-        <p>Completed Projects</p>
+        <div class="stat-card-head">
+          <p>Completed Projects</p>
+          <button id="hideCompletedBtn" class="btn btn-secondary stat-toggle-btn" type="button" aria-pressed="false">Hide Completed</button>
+        </div>
         <h2 id="doneCount">0</h2>
       </article>
     </section>
@@ -238,6 +277,34 @@
     </div>
   </div>
 
+  <div id="shareModal" class="modal-overlay hidden" aria-hidden="true">
+    <div class="panel add-phase-panel" role="dialog" aria-modal="true" aria-labelledby="shareModalTitle" aria-describedby="shareModalDesc">
+      <div class="modal-header">
+        <h3 id="shareModalTitle">Share Project</h3>
+        <button id="shareCloseBtn" type="button" class="btn btn-secondary close-btn">Close</button>
+      </div>
+      <p id="shareModalDesc">Share this project with family or small group members by username.</p>
+      <form id="shareForm" class="add-phase-form" novalidate>
+        <label>
+          Username
+          <input id="shareUsername" type="text" maxlength="60" required />
+        </label>
+        <label>
+          Permission
+          <select id="sharePermission">
+            <option value="VIEW">View Only</option>
+            <option value="EDIT">Can Edit</option>
+          </select>
+        </label>
+        <p id="shareValidation" class="add-phase-validation hidden"></p>
+        <div class="confirm-actions">
+          <button id="shareSubmitBtn" type="submit" class="btn btn-primary">Add Share</button>
+        </div>
+      </form>
+      <div id="shareList" class="share-list"></div>
+    </div>
+  </div>
+
   <div id="flashNoteModal" class="modal-overlay hidden" aria-hidden="true">
     <div class="panel flash-note-panel" role="dialog" aria-modal="true" aria-labelledby="flashNoteModalTitle" aria-describedby="flashNoteModalDesc">
       <div class="modal-header">
@@ -296,7 +363,7 @@
 
   <div id="toast" class="toast hidden"></div>
   <script>
-    const localApiBase = `${window.location.protocol}//${window.location.hostname || "localhost"}:18080/api`;
+    const localApiBase = `${window.location.protocol}//${window.location.hostname || "localhost"}:8080/api`;
     window.TASK_API_BASE_URL = window.location.port === "5500" ? localApiBase : "/task-app/api";
   </script>
   <script src="app.en.js"></script>

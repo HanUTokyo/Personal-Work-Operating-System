@@ -12,6 +12,11 @@ public class TaskResponse {
     private String recentExperiments;
     private String knowledgeHighlights;
     private String priority;
+    private Long ownerUserId;
+    private String ownerUsername;
+    private boolean ownedByCurrentUser;
+    private boolean sharedWithCurrentUser;
+    private String accessLevel;
     private List<PhaseResponse> phases;
     private List<TaskNoteResponse> notes;
     private double overallProgress;
@@ -72,6 +77,46 @@ public class TaskResponse {
 
     public void setPriority(String priority) {
         this.priority = priority;
+    }
+
+    public Long getOwnerUserId() {
+        return ownerUserId;
+    }
+
+    public void setOwnerUserId(Long ownerUserId) {
+        this.ownerUserId = ownerUserId;
+    }
+
+    public String getOwnerUsername() {
+        return ownerUsername;
+    }
+
+    public void setOwnerUsername(String ownerUsername) {
+        this.ownerUsername = ownerUsername;
+    }
+
+    public boolean isOwnedByCurrentUser() {
+        return ownedByCurrentUser;
+    }
+
+    public void setOwnedByCurrentUser(boolean ownedByCurrentUser) {
+        this.ownedByCurrentUser = ownedByCurrentUser;
+    }
+
+    public boolean isSharedWithCurrentUser() {
+        return sharedWithCurrentUser;
+    }
+
+    public void setSharedWithCurrentUser(boolean sharedWithCurrentUser) {
+        this.sharedWithCurrentUser = sharedWithCurrentUser;
+    }
+
+    public String getAccessLevel() {
+        return accessLevel;
+    }
+
+    public void setAccessLevel(String accessLevel) {
+        this.accessLevel = accessLevel;
     }
 
     public List<PhaseResponse> getPhases() {

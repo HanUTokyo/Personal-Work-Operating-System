@@ -32,6 +32,7 @@ public class TaskRepository {
         task.setId(rs.getLong("id"));
         task.setTaskTitle(rs.getString("task_title"));
         task.setTaskDescription(rs.getString("task_description"));
+        task.setOwnerUserId(rs.getLong("owner_user_id"));
         task.setPhase1Status(PhaseStatus.valueOf(rs.getString("phase1_status")));
         task.setPhase2Status(PhaseStatus.valueOf(rs.getString("phase2_status")));
         task.setPhase3Status(PhaseStatus.valueOf(rs.getString("phase3_status")));
@@ -46,17 +47,22 @@ public class TaskRepository {
         this.jdbcTemplate = jdbcTemplate;
     }
 
-    public List<Task> findAll(String keyword, String sortBy, String order) {
+    public List<Task> findAllForUser(Long userId, String keyword, String sortBy, String order) {
         StringBuilder sql = new StringBuilder("""
-                SELECT id, task_title, task_description, phase1_status, phase2_status, phase3_status,
-                       priority, overall_progress, created_at, updated_at
+                SELECT DISTINCT tasks.id, tasks.task_title, tasks.task_description, tasks.owner_user_id,
+                       tasks.phase1_status, tasks.phase2_status, tasks.phase3_status,
+                       tasks.priority, tasks.overall_progress, tasks.created_at, tasks.updated_at
                 FROM tasks
-                WHERE is_deleted = 0
+                LEFT JOIN task_shares ON task_shares.task_id = tasks.id
+                WHERE tasks.is_deleted = 0
+                  AND (tasks.owner_user_id = ? OR task_shares.shared_with_user_id = ?)
                 """);
 
         List<Object> params = new ArrayList<>();
+        params.add(userId);
+        params.add(userId);
         if (keyword != null && !keyword.isBlank()) {
-            sql.append(" AND LOWER(task_title) LIKE ?");
+            sql.append(" AND LOWER(tasks.task_title) LIKE ?");
             params.add("%" + keyword.trim().toLowerCase(Locale.ROOT) + "%");
         }
 
@@ -66,7 +72,7 @@ public class TaskRepository {
 
     public Optional<Task> findById(Long id) {
         String sql = """
-                SELECT id, task_title, task_description, phase1_status, phase2_status, phase3_status,
+                SELECT id, task_title, task_description, owner_user_id, phase1_status, phase2_status, phase3_status,
                        priority, overall_progress, created_at, updated_at
                 FROM tasks
                 WHERE id = ?
@@ -79,9 +85,9 @@ public class TaskRepository {
     public Task save(Task task) {
         String sql = """
                 INSERT INTO tasks (
-                    task_title, task_description, phase1_status, phase2_status, phase3_status,
+                    task_title, task_description, owner_user_id, phase1_status, phase2_status, phase3_status,
                     priority, overall_progress, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
 
         KeyHolder keyHolder = new GeneratedKeyHolder();
@@ -89,13 +95,14 @@ public class TaskRepository {
             PreparedStatement ps = connection.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
             ps.setString(1, task.getTaskTitle());
             ps.setString(2, task.getTaskDescription());
-            ps.setString(3, task.getPhase1Status().name());
-            ps.setString(4, task.getPhase2Status().name());
-            ps.setString(5, task.getPhase3Status().name());
-            ps.setString(6, task.getPriority().name());
-            ps.setDouble(7, task.getOverallProgress());
-            ps.setString(8, formatDateTime(task.getCreatedAt()));
-            ps.setString(9, formatDateTime(task.getUpdatedAt()));
+            ps.setLong(3, task.getOwnerUserId());
+            ps.setString(4, task.getPhase1Status().name());
+            ps.setString(5, task.getPhase2Status().name());
+            ps.setString(6, task.getPhase3Status().name());
+            ps.setString(7, task.getPriority().name());
+            ps.setDouble(8, task.getOverallProgress());
+            ps.setString(9, formatDateTime(task.getCreatedAt()));
+            ps.setString(10, formatDateTime(task.getUpdatedAt()));
             return ps;
         }, keyHolder);
 
@@ -154,18 +161,18 @@ public class TaskRepository {
 
     private String resolveSortColumn(String sortBy) {
         if ("overallProgress".equalsIgnoreCase(sortBy)) {
-            return "overall_progress";
+            return "tasks.overall_progress";
         }
         if ("priority".equalsIgnoreCase(sortBy)) {
-            return "CASE priority WHEN 'HIGH' THEN 3 WHEN 'MEDIUM' THEN 2 WHEN 'LOW' THEN 1 ELSE 0 END";
+            return "CASE tasks.priority WHEN 'HIGH' THEN 3 WHEN 'MEDIUM' THEN 2 WHEN 'LOW' THEN 1 ELSE 0 END";
         }
         if ("createdAt".equalsIgnoreCase(sortBy)) {
-            return "created_at";
+            return "tasks.created_at";
         }
         if ("taskTitle".equalsIgnoreCase(sortBy)) {
-            return "task_title";
+            return "tasks.task_title";
         }
-        return "CASE priority WHEN 'HIGH' THEN 3 WHEN 'MEDIUM' THEN 2 WHEN 'LOW' THEN 1 ELSE 0 END";
+        return "CASE tasks.priority WHEN 'HIGH' THEN 3 WHEN 'MEDIUM' THEN 2 WHEN 'LOW' THEN 1 ELSE 0 END";
     }
 
     private String resolveSortDirection(String order) {

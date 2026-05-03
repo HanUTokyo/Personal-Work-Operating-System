@@ -6,19 +6,29 @@ import com.taskapp.backend.dto.TaskCreateRequest;
 import com.taskapp.backend.dto.TaskNoteCreateRequest;
 import com.taskapp.backend.dto.TaskNoteResponse;
 import com.taskapp.backend.dto.TaskResponse;
+import com.taskapp.backend.dto.TaskShareRequest;
+import com.taskapp.backend.dto.TaskShareResponse;
 import com.taskapp.backend.dto.TaskUpdateRequest;
+import com.taskapp.backend.dto.UserResponse;
+import com.taskapp.backend.exception.AuthorizationException;
 import com.taskapp.backend.exception.TaskNoteNotFoundException;
 import com.taskapp.backend.exception.TaskNotFoundException;
+import com.taskapp.backend.exception.UserNotFoundException;
+import com.taskapp.backend.model.AppUser;
 import com.taskapp.backend.model.PhaseStatus;
 import com.taskapp.backend.model.ProjectPriority;
+import com.taskapp.backend.model.SharePermission;
 import com.taskapp.backend.model.Task;
 import com.taskapp.backend.model.TaskKnowledge;
 import com.taskapp.backend.model.TaskNote;
 import com.taskapp.backend.model.TaskPhase;
+import com.taskapp.backend.model.TaskShare;
 import com.taskapp.backend.repository.TaskKnowledgeRepository;
 import com.taskapp.backend.repository.TaskNoteRepository;
 import com.taskapp.backend.repository.TaskPhaseRepository;
 import com.taskapp.backend.repository.TaskRepository;
+import com.taskapp.backend.repository.TaskShareRepository;
+import com.taskapp.backend.repository.UserRepository;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -38,25 +48,36 @@ public class TaskService {
     private final TaskPhaseRepository taskPhaseRepository;
     private final TaskKnowledgeRepository taskKnowledgeRepository;
     private final TaskNoteRepository taskNoteRepository;
+    private final TaskShareRepository taskShareRepository;
+    private final UserRepository userRepository;
+    private final AuthService authService;
 
     public TaskService(
             TaskRepository taskRepository,
             TaskPhaseRepository taskPhaseRepository,
             TaskKnowledgeRepository taskKnowledgeRepository,
-            TaskNoteRepository taskNoteRepository
+            TaskNoteRepository taskNoteRepository,
+            TaskShareRepository taskShareRepository,
+            UserRepository userRepository,
+            AuthService authService
     ) {
         this.taskRepository = taskRepository;
         this.taskPhaseRepository = taskPhaseRepository;
         this.taskKnowledgeRepository = taskKnowledgeRepository;
         this.taskNoteRepository = taskNoteRepository;
+        this.taskShareRepository = taskShareRepository;
+        this.userRepository = userRepository;
+        this.authService = authService;
     }
 
-    public List<TaskResponse> getAllTasks(String keyword, String sortBy, String order) {
-        List<Task> tasks = taskRepository.findAll(keyword, sortBy, order);
+    public List<TaskResponse> getAllTasks(String authorizationHeader, String keyword, String sortBy, String order) {
+        AppUser currentUser = authService.requireUser(authorizationHeader);
+        List<Task> tasks = taskRepository.findAllForUser(currentUser.getId(), keyword, sortBy, order);
         List<Long> taskIds = tasks.stream().map(Task::getId).toList();
         Map<Long, List<TaskPhase>> phaseMap = taskPhaseRepository.findByTaskIds(taskIds);
         Map<Long, TaskKnowledge> knowledgeMap = taskKnowledgeRepository.findByTaskIds(taskIds);
         Map<Long, List<TaskNote>> noteMap = taskNoteRepository.findByTaskIds(taskIds);
+        Map<Long, AppUser> ownerMap = userRepository.findMapByIds(tasks.stream().map(Task::getOwnerUserId).distinct().toList());
 
         return tasks.stream()
                 .map(task -> {
@@ -64,14 +85,16 @@ public class TaskService {
                     if (phases == null || phases.isEmpty()) {
                         phases = backfillLegacyPhases(task);
                     }
-                    return toResponse(task, phases, knowledgeMap.get(task.getId()), noteMap.get(task.getId()));
+                    return toResponse(task, phases, knowledgeMap.get(task.getId()), noteMap.get(task.getId()), currentUser, ownerMap.get(task.getOwnerUserId()));
                 })
                 .toList();
     }
 
-    public TaskResponse getTaskById(Long id) {
+    public TaskResponse getTaskById(String authorizationHeader, Long id) {
+        AppUser currentUser = authService.requireUser(authorizationHeader);
         Task task = taskRepository.findById(id)
                 .orElseThrow(() -> new TaskNotFoundException(id));
+        requireCanView(currentUser, task);
 
         List<TaskPhase> phases = taskPhaseRepository.findByTaskId(id);
         if (phases.isEmpty()) {
@@ -79,16 +102,19 @@ public class TaskService {
         }
         TaskKnowledge knowledge = taskKnowledgeRepository.findByTaskId(id).orElse(null);
         List<TaskNote> notes = taskNoteRepository.findByTaskId(id);
-        return toResponse(task, phases, knowledge, notes);
+        AppUser owner = userRepository.findById(task.getOwnerUserId()).orElse(null);
+        return toResponse(task, phases, knowledge, notes, currentUser, owner);
     }
 
-    public TaskResponse createTask(TaskCreateRequest request) {
+    public TaskResponse createTask(String authorizationHeader, TaskCreateRequest request) {
+        AppUser currentUser = authService.requireUser(authorizationHeader);
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         List<TaskPhase> normalizedPhases = normalizePhases(request.getPhases());
 
         Task task = new Task();
         task.setTaskTitle(request.getTaskTitle().trim());
         task.setTaskDescription(normalizeDescription(request.getTaskDescription()));
+        task.setOwnerUserId(currentUser.getId());
         task.setPriority(resolvePriority(request.getPriority()));
         applyLegacyPhaseColumns(task, normalizedPhases);
         task.setOverallProgress(calculateOverallProgress(normalizedPhases));
@@ -108,12 +134,14 @@ public class TaskService {
         List<TaskPhase> savedPhases = taskPhaseRepository.findByTaskId(savedTask.getId());
         TaskKnowledge knowledge = taskKnowledgeRepository.findByTaskId(savedTask.getId()).orElse(null);
         List<TaskNote> notes = taskNoteRepository.findByTaskId(savedTask.getId());
-        return toResponse(savedTask, savedPhases, knowledge, notes);
+        return toResponse(savedTask, savedPhases, knowledge, notes, currentUser, currentUser);
     }
 
-    public TaskResponse updateTask(Long id, TaskUpdateRequest request) {
+    public TaskResponse updateTask(String authorizationHeader, Long id, TaskUpdateRequest request) {
+        AppUser currentUser = authService.requireUser(authorizationHeader);
         Task existingTask = taskRepository.findById(id)
                 .orElseThrow(() -> new TaskNotFoundException(id));
+        requireCanEdit(currentUser, existingTask);
 
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         List<TaskPhase> normalizedPhases = normalizePhases(request.getPhases());
@@ -138,19 +166,24 @@ public class TaskService {
         List<TaskPhase> savedPhases = taskPhaseRepository.findByTaskId(id);
         TaskKnowledge knowledge = taskKnowledgeRepository.findByTaskId(id).orElse(null);
         List<TaskNote> notes = taskNoteRepository.findByTaskId(id);
-        return toResponse(updatedTask, savedPhases, knowledge, notes);
+        AppUser owner = userRepository.findById(updatedTask.getOwnerUserId()).orElse(null);
+        return toResponse(updatedTask, savedPhases, knowledge, notes, currentUser, owner);
     }
 
-    public void deleteTask(Long id) {
+    public void deleteTask(String authorizationHeader, Long id) {
+        AppUser currentUser = authService.requireUser(authorizationHeader);
         Task existingTask = taskRepository.findById(id)
                 .orElseThrow(() -> new TaskNotFoundException(id));
+        requireOwner(currentUser, existingTask);
 
         taskRepository.deleteById(existingTask.getId());
     }
 
-    public TaskNoteResponse addTaskNote(Long taskId, TaskNoteCreateRequest request) {
+    public TaskNoteResponse addTaskNote(String authorizationHeader, Long taskId, TaskNoteCreateRequest request) {
+        AppUser currentUser = authService.requireUser(authorizationHeader);
         Task existingTask = taskRepository.findById(taskId)
                 .orElseThrow(() -> new TaskNotFoundException(taskId));
+        requireCanEdit(currentUser, existingTask);
 
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         TaskNote saved = taskNoteRepository.save(
@@ -162,9 +195,11 @@ public class TaskService {
         return toNoteResponse(saved);
     }
 
-    public TaskNoteResponse updateTaskNote(Long taskId, Long noteId, TaskNoteCreateRequest request) {
-        taskRepository.findById(taskId)
+    public TaskNoteResponse updateTaskNote(String authorizationHeader, Long taskId, Long noteId, TaskNoteCreateRequest request) {
+        AppUser currentUser = authService.requireUser(authorizationHeader);
+        Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new TaskNotFoundException(taskId));
+        requireCanEdit(currentUser, task);
 
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         TaskNote updated = taskNoteRepository.update(
@@ -180,14 +215,70 @@ public class TaskService {
         return toNoteResponse(updated);
     }
 
-    public void deleteTaskNote(Long taskId, Long noteId) {
-        taskRepository.findById(taskId)
+    public void deleteTaskNote(String authorizationHeader, Long taskId, Long noteId) {
+        AppUser currentUser = authService.requireUser(authorizationHeader);
+        Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new TaskNotFoundException(taskId));
+        requireCanEdit(currentUser, task);
 
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         boolean deleted = taskNoteRepository.softDelete(noteId, taskId, now);
         if (!deleted) {
             throw new TaskNoteNotFoundException(taskId, noteId);
+        }
+    }
+
+    public List<TaskShareResponse> getTaskShares(String authorizationHeader, Long taskId) {
+        AppUser currentUser = authService.requireUser(authorizationHeader);
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new TaskNotFoundException(taskId));
+        requireOwner(currentUser, task);
+        return buildShareResponses(taskShareRepository.findByTaskId(taskId));
+    }
+
+    public TaskShareResponse shareTask(String authorizationHeader, Long taskId, TaskShareRequest request) {
+        AppUser currentUser = authService.requireUser(authorizationHeader);
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new TaskNotFoundException(taskId));
+        requireOwner(currentUser, task);
+
+        AppUser targetUser = userRepository.findByUsername(request.getUsername())
+                .orElseThrow(() -> new UserNotFoundException(request.getUsername()));
+        if (targetUser.getId().equals(currentUser.getId())) {
+            throw new AuthorizationException("Cannot share a task with yourself");
+        }
+
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        TaskShare share = taskShareRepository.upsert(taskId, targetUser.getId(), request.getPermission(), now);
+        return toShareResponse(share, targetUser);
+    }
+
+    public TaskShareResponse updateTaskShare(String authorizationHeader, Long taskId, Long shareId, TaskShareRequest request) {
+        AppUser currentUser = authService.requireUser(authorizationHeader);
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new TaskNotFoundException(taskId));
+        requireOwner(currentUser, task);
+
+        TaskShare existing = taskShareRepository.findById(shareId)
+                .orElseThrow(() -> new TaskNotFoundException(taskId));
+        if (!existing.getTaskId().equals(taskId)) {
+            throw new TaskNotFoundException(taskId);
+        }
+
+        LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        TaskShare share = taskShareRepository.upsert(taskId, existing.getSharedWithUserId(), request.getPermission(), now);
+        AppUser targetUser = userRepository.findById(share.getSharedWithUserId()).orElse(null);
+        return toShareResponse(share, targetUser);
+    }
+
+    public void deleteTaskShare(String authorizationHeader, Long taskId, Long shareId) {
+        AppUser currentUser = authService.requireUser(authorizationHeader);
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new TaskNotFoundException(taskId));
+        requireOwner(currentUser, task);
+        boolean deleted = taskShareRepository.delete(taskId, shareId);
+        if (!deleted) {
+            throw new TaskNotFoundException(taskId);
         }
     }
 
@@ -257,7 +348,45 @@ public class TaskService {
                 .doubleValue();
     }
 
-    private TaskResponse toResponse(Task task, List<TaskPhase> phases, TaskKnowledge knowledge, List<TaskNote> notes) {
+    private void requireCanView(AppUser user, Task task) {
+        if (isOwner(user, task) || taskShareRepository.findByTaskIdAndUserId(task.getId(), user.getId()).isPresent()) {
+            return;
+        }
+        throw new TaskNotFoundException(task.getId());
+    }
+
+    private void requireCanEdit(AppUser user, Task task) {
+        if (isOwner(user, task)) {
+            return;
+        }
+        boolean canEdit = taskShareRepository.findByTaskIdAndUserId(task.getId(), user.getId())
+                .map(share -> share.getPermission() == SharePermission.EDIT)
+                .orElse(false);
+        if (!canEdit) {
+            throw new AuthorizationException("You do not have permission to edit this task");
+        }
+    }
+
+    private void requireOwner(AppUser user, Task task) {
+        if (!isOwner(user, task)) {
+            throw new AuthorizationException("Only the owner can perform this action");
+        }
+    }
+
+    private boolean isOwner(AppUser user, Task task) {
+        return task.getOwnerUserId() != null && task.getOwnerUserId().equals(user.getId());
+    }
+
+    private String resolveAccessLevel(AppUser user, Task task) {
+        if (isOwner(user, task)) {
+            return "OWNER";
+        }
+        return taskShareRepository.findByTaskIdAndUserId(task.getId(), user.getId())
+                .map(share -> share.getPermission().name())
+                .orElse("NONE");
+    }
+
+    private TaskResponse toResponse(Task task, List<TaskPhase> phases, TaskKnowledge knowledge, List<TaskNote> notes, AppUser currentUser, AppUser owner) {
         TaskResponse response = new TaskResponse();
         response.setId(task.getId());
         response.setTaskTitle(task.getTaskTitle());
@@ -266,11 +395,40 @@ public class TaskService {
         response.setRecentExperiments(knowledge == null ? null : knowledge.getRecentExperiments());
         response.setKnowledgeHighlights(knowledge == null ? null : knowledge.getKnowledgeHighlights());
         response.setPriority(task.getPriority() == null ? ProjectPriority.MEDIUM.name() : task.getPriority().name());
+        response.setOwnerUserId(task.getOwnerUserId());
+        response.setOwnerUsername(owner == null ? null : owner.getUsername());
+        response.setOwnedByCurrentUser(isOwner(currentUser, task));
+        response.setSharedWithCurrentUser(!isOwner(currentUser, task));
+        response.setAccessLevel(resolveAccessLevel(currentUser, task));
         response.setPhases(phases.stream().map(this::toPhaseResponse).toList());
         response.setNotes((notes == null ? List.<TaskNote>of() : notes).stream().map(this::toNoteResponse).toList());
         response.setOverallProgress(task.getOverallProgress());
         response.setCreatedAt(task.getCreatedAt());
         response.setUpdatedAt(task.getUpdatedAt());
+        return response;
+    }
+
+    private List<TaskShareResponse> buildShareResponses(List<TaskShare> shares) {
+        Map<Long, AppUser> userMap = userRepository.findMapByIds(shares.stream().map(TaskShare::getSharedWithUserId).toList());
+        return shares.stream()
+                .map(share -> toShareResponse(share, userMap.get(share.getSharedWithUserId())))
+                .toList();
+    }
+
+    private TaskShareResponse toShareResponse(TaskShare share, AppUser user) {
+        TaskShareResponse response = new TaskShareResponse();
+        response.setId(share.getId());
+        response.setTaskId(share.getTaskId());
+        response.setPermission(share.getPermission());
+        response.setSharedWith(user == null ? null : toUserResponse(user));
+        return response;
+    }
+
+    private UserResponse toUserResponse(AppUser user) {
+        UserResponse response = new UserResponse();
+        response.setId(user.getId());
+        response.setUsername(user.getUsername());
+        response.setDisplayName(user.getDisplayName());
         return response;
     }
 
