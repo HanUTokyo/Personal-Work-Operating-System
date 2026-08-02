@@ -7,12 +7,13 @@ import com.taskapp.backend.exception.AuthenticationException;
 import com.taskapp.backend.exception.UserConflictException;
 import com.taskapp.backend.model.AppUser;
 import com.taskapp.backend.repository.UserRepository;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
-import java.security.SecureRandom;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.HexFormat;
@@ -23,7 +24,7 @@ import java.util.UUID;
 public class AuthService {
 
     private final UserRepository userRepository;
-    private final SecureRandom secureRandom = new SecureRandom();
+    private final PasswordEncoder passwordEncoder = new BCryptPasswordEncoder(12);
 
     public AuthService(UserRepository userRepository) {
         this.userRepository = userRepository;
@@ -36,12 +37,11 @@ public class AuthService {
         }
 
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-        String salt = generateSalt();
         AppUser user = new AppUser();
         user.setUsername(username);
         user.setDisplayName(normalizeDisplayName(request.getDisplayName(), username));
-        user.setPasswordSalt(salt);
-        user.setPasswordHash(hashPassword(salt, request.getPassword()));
+        user.setPasswordSalt("");
+        user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setAuthToken(generateToken());
         user.setCreatedAt(now);
         user.setUpdatedAt(now);
@@ -55,13 +55,18 @@ public class AuthService {
         AppUser user = userRepository.findByUsername(username)
                 .orElseThrow(() -> new AuthenticationException("Invalid username or password"));
 
-        String expectedHash = hashPassword(user.getPasswordSalt(), request.getPassword());
-        if (!expectedHash.equals(user.getPasswordHash())) {
+        if (!passwordMatches(user, request.getPassword())) {
             throw new AuthenticationException("Invalid username or password");
         }
 
         String token = generateToken();
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
+        if (isLegacyPasswordHash(user.getPasswordHash())) {
+            String upgradedHash = passwordEncoder.encode(request.getPassword());
+            userRepository.updatePassword(user.getId(), upgradedHash, "", now);
+            user.setPasswordHash(upgradedHash);
+            user.setPasswordSalt("");
+        }
         userRepository.updateToken(user.getId(), token, now);
         user.setAuthToken(token);
         return toAuthResponse(user, token);
@@ -111,12 +116,6 @@ public class AuthService {
         return displayName.trim();
     }
 
-    private String generateSalt() {
-        byte[] bytes = new byte[16];
-        secureRandom.nextBytes(bytes);
-        return HexFormat.of().formatHex(bytes);
-    }
-
     private String generateToken() {
         return UUID.randomUUID() + "-" + UUID.randomUUID();
     }
@@ -133,7 +132,18 @@ public class AuthService {
         return token.isEmpty() ? null : token;
     }
 
-    private String hashPassword(String salt, String password) {
+    private boolean passwordMatches(AppUser user, String password) {
+        if (!isLegacyPasswordHash(user.getPasswordHash())) {
+            return passwordEncoder.matches(password, user.getPasswordHash());
+        }
+        return legacyPasswordHash(user.getPasswordSalt(), password).equals(user.getPasswordHash());
+    }
+
+    private boolean isLegacyPasswordHash(String passwordHash) {
+        return passwordHash == null || !passwordHash.startsWith("$2");
+    }
+
+    private String legacyPasswordHash(String salt, String password) {
         try {
             MessageDigest digest = MessageDigest.getInstance("SHA-256");
             byte[] hashed = digest.digest((salt + ":" + password).getBytes(StandardCharsets.UTF_8));

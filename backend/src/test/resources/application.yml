@@ -1,0 +1,6 @@
+spring:
+  datasource:
+    url: jdbc:sqlite:/tmp/task-app-test.db
+  sql:
+    init:
+      mode: always

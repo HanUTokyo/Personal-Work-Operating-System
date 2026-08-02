@@ -38,6 +38,7 @@ public class TaskRepository {
         task.setPhase3Status(PhaseStatus.valueOf(rs.getString("phase3_status")));
         task.setPriority(parsePriority(rs.getString("priority")));
         task.setOverallProgress(rs.getDouble("overall_progress"));
+        task.setPinned(rs.getInt("pinned") != 0);
         task.setCreatedAt(parseDateTime(rs.getString("created_at")));
         task.setUpdatedAt(parseDateTime(rs.getString("updated_at")));
         return task;
@@ -51,9 +52,11 @@ public class TaskRepository {
         StringBuilder sql = new StringBuilder("""
                 SELECT DISTINCT tasks.id, tasks.task_title, tasks.task_description, tasks.owner_user_id,
                        tasks.phase1_status, tasks.phase2_status, tasks.phase3_status,
-                       tasks.priority, tasks.overall_progress, tasks.created_at, tasks.updated_at
+                       tasks.priority, tasks.overall_progress, tasks.created_at, tasks.updated_at,
+                       CASE WHEN task_pins.task_id IS NULL THEN 0 ELSE 1 END AS pinned
                 FROM tasks
                 LEFT JOIN task_shares ON task_shares.task_id = tasks.id
+                LEFT JOIN task_pins ON task_pins.task_id = tasks.id AND task_pins.user_id = ?
                 WHERE tasks.is_deleted = 0
                   AND (tasks.owner_user_id = ? OR task_shares.shared_with_user_id = ?)
                 """);
@@ -61,19 +64,21 @@ public class TaskRepository {
         List<Object> params = new ArrayList<>();
         params.add(userId);
         params.add(userId);
+        params.add(userId);
         if (keyword != null && !keyword.isBlank()) {
             sql.append(" AND LOWER(tasks.task_title) LIKE ?");
             params.add("%" + keyword.trim().toLowerCase(Locale.ROOT) + "%");
         }
 
-        sql.append(" ORDER BY ").append(resolveSortColumn(sortBy)).append(" ").append(resolveSortDirection(order));
+        sql.append(" ORDER BY CASE WHEN task_pins.task_id IS NULL THEN 0 ELSE 1 END DESC, ")
+                .append(resolveSortColumn(sortBy)).append(" ").append(resolveSortDirection(order));
         return jdbcTemplate.query(sql.toString(), taskRowMapper, params.toArray());
     }
 
     public Optional<Task> findById(Long id) {
         String sql = """
                 SELECT id, task_title, task_description, owner_user_id, phase1_status, phase2_status, phase3_status,
-                       priority, overall_progress, created_at, updated_at
+                       priority, overall_progress, created_at, updated_at, 0 AS pinned
                 FROM tasks
                 WHERE id = ?
                   AND is_deleted = 0

@@ -28,6 +28,8 @@ public class TaskPhaseRepository {
         TaskPhase phase = new TaskPhase();
         phase.setId(rs.getLong("id"));
         phase.setTaskId(rs.getLong("task_id"));
+        phase.setPhaseKey(rs.getString("phase_key"));
+        phase.setParentPhaseKey(rs.getString("parent_phase_key"));
         phase.setPhaseName(rs.getString("phase_name"));
         phase.setPhaseDescription(rs.getString("phase_description"));
         phase.setPhaseStatus(PhaseStatus.valueOf(rs.getString("phase_status")));
@@ -43,7 +45,7 @@ public class TaskPhaseRepository {
 
     public List<TaskPhase> findByTaskId(Long taskId) {
         String sql = """
-                SELECT id, task_id, phase_name, phase_description, phase_status, sort_order, created_at, updated_at
+                SELECT id, task_id, phase_key, parent_phase_key, phase_name, phase_description, phase_status, sort_order, created_at, updated_at
                 FROM task_phases
                 WHERE task_id = ?
                 ORDER BY sort_order ASC, id ASC
@@ -58,7 +60,7 @@ public class TaskPhaseRepository {
 
         String placeholders = String.join(",", Collections.nCopies(taskIds.size(), "?"));
         String sql = """
-                SELECT id, task_id, phase_name, phase_description, phase_status, sort_order, created_at, updated_at
+                SELECT id, task_id, phase_key, parent_phase_key, phase_name, phase_description, phase_status, sort_order, created_at, updated_at
                 FROM task_phases
                 WHERE task_id IN (%s)
                 ORDER BY task_id ASC, sort_order ASC, id ASC
@@ -87,28 +89,32 @@ public class TaskPhaseRepository {
         String sql = """
                 INSERT INTO task_phases (
                     task_id,
+                    phase_key,
+                    parent_phase_key,
                     phase_name,
                     phase_description,
                     phase_status,
                     sort_order,
                     created_at,
                     updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
                 """;
 
         for (int i = 0; i < phases.size(); i++) {
             TaskPhase phase = phases.get(i);
-            int sortOrder = i + 1;
+            int sortOrder = phase.getSortOrder() > 0 ? phase.getSortOrder() : i + 1;
 
             jdbcTemplate.update(connection -> {
                 PreparedStatement ps = connection.prepareStatement(sql);
                 ps.setLong(1, taskId);
-                ps.setString(2, phase.getPhaseName());
-                ps.setString(3, phase.getPhaseDescription());
-                ps.setString(4, phase.getPhaseStatus().name());
-                ps.setInt(5, sortOrder);
-                ps.setString(6, formatDateTime(now));
-                ps.setString(7, formatDateTime(now));
+                ps.setString(2, phase.getPhaseKey());
+                ps.setString(3, phase.getParentPhaseKey());
+                ps.setString(4, phase.getPhaseName());
+                ps.setString(5, phase.getPhaseDescription());
+                ps.setString(6, phase.getPhaseStatus().name());
+                ps.setInt(7, sortOrder);
+                ps.setString(8, formatDateTime(now));
+                ps.setString(9, formatDateTime(now));
                 return ps;
             });
         }
