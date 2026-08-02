@@ -1,6 +1,7 @@
 package com.taskapp.backend.config;
 
 import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -19,13 +20,17 @@ public class SqliteMigrationConfig {
         ensureTaskOwnerColumn();
         ensureSoftDeleteColumns();
         ensurePhaseDescriptionColumn();
+        ensurePhaseTreeColumns();
         ensureKnowledgeTable();
         ensureTaskNotesTable();
         ensureFlashNotesTable();
         ensureFlashNoteOwnerColumn();
         ensureTaskSharesTable();
+        ensureTaskPinsTable();
         ensureTaskNotesSoftDeleteColumns();
         ensureFlashNotesSoftDeleteColumns();
+        ensurePersonalTasksTable();
+        ensureGlobalAiSuggestionsTable();
     }
 
     private void ensureUsersTable() {
@@ -54,9 +59,9 @@ public class SqliteMigrationConfig {
             jdbcTemplate.update(
                     """
                     INSERT INTO users (username, display_name, password_hash, password_salt, created_at, updated_at)
-                    VALUES ('default', 'Default User', ?, 'default-salt-v1', strftime('%Y-%m-%dT%H:%M:%S','now'), strftime('%Y-%m-%dT%H:%M:%S','now'))
+                    VALUES ('default', 'Default User', ?, '', strftime('%Y-%m-%dT%H:%M:%S','now'), strftime('%Y-%m-%dT%H:%M:%S','now'))
                     """,
-                    "27ec8991eab073477465d8b4bd290bea3dbc12dccc2b2e820aad3921668c5edd"
+                    new BCryptPasswordEncoder(12).encode("default123")
             );
         }
     }
@@ -135,6 +140,65 @@ public class SqliteMigrationConfig {
         }
     }
 
+    private void ensurePhaseTreeColumns() {
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS task_phases (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    task_id INTEGER NOT NULL,
+                    phase_key TEXT,
+                    parent_phase_key TEXT,
+                    phase_name TEXT NOT NULL,
+                    phase_description TEXT,
+                    phase_status TEXT NOT NULL,
+                    sort_order INTEGER NOT NULL,
+                    created_at DATETIME NOT NULL,
+                    updated_at DATETIME NOT NULL,
+                    CONSTRAINT fk_task_phases_task FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE
+                )
+                """);
+
+        List<Map<String, Object>> columns = jdbcTemplate.queryForList("PRAGMA table_info(task_phases)");
+        boolean hasPhaseKey = columns.stream()
+                .map(column -> String.valueOf(column.get("name")))
+                .anyMatch(name -> "phase_key".equalsIgnoreCase(name));
+        if (!hasPhaseKey) {
+            jdbcTemplate.execute("ALTER TABLE task_phases ADD COLUMN phase_key TEXT");
+        }
+
+        boolean hasParentPhaseKey = columns.stream()
+                .map(column -> String.valueOf(column.get("name")))
+                .anyMatch(name -> "parent_phase_key".equalsIgnoreCase(name));
+        if (!hasParentPhaseKey) {
+            jdbcTemplate.execute("ALTER TABLE task_phases ADD COLUMN parent_phase_key TEXT");
+        }
+
+        List<Map<String, Object>> rows = jdbcTemplate.queryForList("""
+                SELECT id, task_id
+                FROM task_phases
+                WHERE phase_key IS NULL OR TRIM(phase_key) = ''
+                ORDER BY task_id ASC, sort_order ASC, id ASC
+                """);
+        Long currentTaskId = null;
+        int phaseIndex = 0;
+        for (Map<String, Object> row : rows) {
+            Long taskId = ((Number) row.get("task_id")).longValue();
+            if (!taskId.equals(currentTaskId)) {
+                currentTaskId = taskId;
+                phaseIndex = 1;
+            } else {
+                phaseIndex++;
+            }
+            jdbcTemplate.update(
+                    "UPDATE task_phases SET phase_key = ? WHERE id = ?",
+                    "phase-" + phaseIndex,
+                    row.get("id")
+            );
+        }
+
+        jdbcTemplate.execute("CREATE UNIQUE INDEX IF NOT EXISTS idx_task_phases_unique_key ON task_phases(task_id, phase_key)");
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_task_phases_parent ON task_phases(task_id, parent_phase_key)");
+    }
+
     private void ensureTaskNotesTable() {
         jdbcTemplate.execute("""
                 CREATE TABLE IF NOT EXISTS task_notes (
@@ -197,6 +261,21 @@ public class SqliteMigrationConfig {
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_task_shares_user_id ON task_shares(shared_with_user_id)");
     }
 
+    private void ensureTaskPinsTable() {
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS task_pins (
+                    task_id INTEGER NOT NULL,
+                    user_id INTEGER NOT NULL,
+                    created_at DATETIME NOT NULL,
+                    updated_at DATETIME NOT NULL,
+                    PRIMARY KEY (task_id, user_id),
+                    CONSTRAINT fk_task_pins_task FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+                    CONSTRAINT fk_task_pins_user FOREIGN KEY(user_id) REFERENCES users(id) ON DELETE CASCADE
+                )
+                """);
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_task_pins_user_id ON task_pins(user_id)");
+    }
+
     private void ensureTaskNotesSoftDeleteColumns() {
         List<Map<String, Object>> columns = jdbcTemplate.queryForList("PRAGMA table_info(task_notes)");
         boolean hasIsDeleted = columns.stream()
@@ -233,6 +312,58 @@ public class SqliteMigrationConfig {
         }
 
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_flash_notes_is_deleted ON flash_notes(is_deleted)");
+    }
+
+    private void ensurePersonalTasksTable() {
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS personal_tasks (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    owner_user_id INTEGER NOT NULL,
+                    task_type TEXT NOT NULL,
+                    content TEXT NOT NULL,
+                    completed INTEGER NOT NULL DEFAULT 0,
+                    pinned INTEGER NOT NULL DEFAULT 0,
+                    sort_order INTEGER NOT NULL DEFAULT 0,
+                    created_at DATETIME NOT NULL,
+                    updated_at DATETIME NOT NULL,
+                    is_deleted INTEGER NOT NULL DEFAULT 0,
+                    deleted_at DATETIME,
+                    CONSTRAINT fk_personal_tasks_owner FOREIGN KEY(owner_user_id) REFERENCES users(id)
+                )
+                """);
+        List<Map<String, Object>> columns = jdbcTemplate.queryForList("PRAGMA table_info(personal_tasks)");
+        boolean hasPinned = columns.stream()
+                .map(column -> String.valueOf(column.get("name")))
+                .anyMatch(name -> "pinned".equalsIgnoreCase(name));
+        if (!hasPinned) {
+            jdbcTemplate.execute("ALTER TABLE personal_tasks ADD COLUMN pinned INTEGER NOT NULL DEFAULT 0");
+        }
+        boolean hasSortOrder = columns.stream()
+                .map(column -> String.valueOf(column.get("name")))
+                .anyMatch(name -> "sort_order".equalsIgnoreCase(name));
+        if (!hasSortOrder) {
+            jdbcTemplate.execute("ALTER TABLE personal_tasks ADD COLUMN sort_order INTEGER NOT NULL DEFAULT 0");
+        }
+        jdbcTemplate.execute("UPDATE personal_tasks SET sort_order = id WHERE sort_order = 0");
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_personal_tasks_owner_type ON personal_tasks(owner_user_id, task_type)");
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_personal_tasks_active ON personal_tasks(owner_user_id, task_type, is_deleted, completed, created_at)");
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_personal_tasks_order ON personal_tasks(owner_user_id, task_type, is_deleted, pinned, sort_order)");
+    }
+
+    private void ensureGlobalAiSuggestionsTable() {
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS global_ai_suggestions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    owner_user_id INTEGER NOT NULL,
+                    content TEXT NOT NULL,
+                    created_at DATETIME NOT NULL,
+                    updated_at DATETIME NOT NULL,
+                    is_deleted INTEGER NOT NULL DEFAULT 0,
+                    deleted_at DATETIME,
+                    CONSTRAINT fk_global_ai_suggestions_owner FOREIGN KEY(owner_user_id) REFERENCES users(id)
+                )
+                """);
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_global_ai_suggestions_active ON global_ai_suggestions(owner_user_id, is_deleted, updated_at)");
     }
 
     private Long findDefaultUserId() {

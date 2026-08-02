@@ -61,6 +61,8 @@ INSERT OR IGNORE INTO tasks (
 
 INSERT OR IGNORE INTO task_phases (
     task_id,
+    phase_key,
+    parent_phase_key,
     phase_name,
     phase_description,
     phase_status,
@@ -68,18 +70,18 @@ INSERT OR IGNORE INTO task_phases (
     created_at,
     updated_at
 ) VALUES
-    (1, 'Infrastructure Baseline', 'Linux VM provisioning and base package installation completed.', 'DONE', 1, '2026-03-07T09:00:00', '2026-03-08T14:20:00'),
-    (1, 'Runtime Configuration', 'Java 21 runtime and service startup scripts are in progress.', 'DOING', 2, '2026-03-07T09:00:00', '2026-03-08T14:20:00'),
-    (1, 'Connectivity Validation', 'End-to-end connectivity and health checks pending.', 'TODO', 3, '2026-03-07T09:00:00', '2026-03-08T14:20:00'),
-    (2, 'API Baseline', 'Core REST endpoints implemented and validated.', 'DONE', 1, '2026-03-07T10:30:00', '2026-03-09T10:45:00'),
-    (2, 'Frontend Mapping', 'Frontend payload and response mapping is complete.', 'DONE', 2, '2026-03-07T10:30:00', '2026-03-09T10:45:00'),
-    (2, 'Edge Case Hardening', 'Validation and failure-path handling in progress.', 'DOING', 3, '2026-03-07T10:30:00', '2026-03-09T10:45:00'),
-    (3, 'Scope Review', 'Waiting for test window allocation.', 'TODO', 1, '2026-03-09T08:00:00', '2026-03-09T08:00:00'),
-    (3, 'Execution Plan', 'Waiting for test window allocation.', 'TODO', 2, '2026-03-09T08:00:00', '2026-03-09T08:00:00'),
-    (3, 'Sign-off', 'Waiting for test window allocation.', 'TODO', 3, '2026-03-09T08:00:00', '2026-03-09T08:00:00'),
-    (4, 'Legacy Audit', 'Project has been inactive and needs re-assessment.', 'DOING', 1, '2026-01-13T10:00:00', '2026-01-13T10:00:00'),
-    (4, 'Refactor Plan', 'No active resource assignment yet.', 'TODO', 2, '2026-01-13T10:00:00', '2026-01-13T10:00:00'),
-    (4, 'Execution', 'No active resource assignment yet.', 'TODO', 3, '2026-01-13T10:00:00', '2026-01-13T10:00:00');
+    (1, 'phase-1', NULL, 'Infrastructure Baseline', 'Linux VM provisioning and base package installation completed.', 'DONE', 1, '2026-03-07T09:00:00', '2026-03-08T14:20:00'),
+    (1, 'phase-2', 'phase-1', 'Runtime Configuration', 'Java 21 runtime and service startup scripts are in progress.', 'DOING', 2, '2026-03-07T09:00:00', '2026-03-08T14:20:00'),
+    (1, 'phase-3', 'phase-1', 'Connectivity Validation', 'End-to-end connectivity and health checks pending.', 'TODO', 3, '2026-03-07T09:00:00', '2026-03-08T14:20:00'),
+    (2, 'phase-1', NULL, 'API Baseline', 'Core REST endpoints implemented and validated.', 'DONE', 1, '2026-03-07T10:30:00', '2026-03-09T10:45:00'),
+    (2, 'phase-2', 'phase-1', 'Frontend Mapping', 'Frontend payload and response mapping is complete.', 'DONE', 2, '2026-03-07T10:30:00', '2026-03-09T10:45:00'),
+    (2, 'phase-3', 'phase-1', 'Edge Case Hardening', 'Validation and failure-path handling in progress.', 'DOING', 3, '2026-03-07T10:30:00', '2026-03-09T10:45:00'),
+    (3, 'phase-1', NULL, 'Scope Review', 'Waiting for test window allocation.', 'TODO', 1, '2026-03-09T08:00:00', '2026-03-09T08:00:00'),
+    (3, 'phase-2', 'phase-1', 'Execution Plan', 'Waiting for test window allocation.', 'TODO', 2, '2026-03-09T08:00:00', '2026-03-09T08:00:00'),
+    (3, 'phase-3', 'phase-1', 'Sign-off', 'Waiting for test window allocation.', 'TODO', 3, '2026-03-09T08:00:00', '2026-03-09T08:00:00'),
+    (4, 'phase-1', NULL, 'Legacy Audit', 'Project has been inactive and needs re-assessment.', 'DOING', 1, '2026-01-13T10:00:00', '2026-01-13T10:00:00'),
+    (4, 'phase-2', 'phase-1', 'Refactor Plan', 'No active resource assignment yet.', 'TODO', 2, '2026-01-13T10:00:00', '2026-01-13T10:00:00'),
+    (4, 'phase-3', 'phase-1', 'Execution', 'No active resource assignment yet.', 'TODO', 3, '2026-01-13T10:00:00', '2026-01-13T10:00:00');
 
 INSERT OR IGNORE INTO task_knowledge (
     task_id,

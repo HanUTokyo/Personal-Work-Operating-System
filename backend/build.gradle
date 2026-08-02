@@ -5,7 +5,7 @@ plugins {
 }
 
 group = 'com.taskapp'
-version = '0.0.1-SNAPSHOT'
+version = '1.0.0-beta.3'
 description = 'Task Progress Management System Backend'
 
 java {
@@ -23,6 +23,7 @@ dependencies {
     implementation 'org.springframework.boot:spring-boot-starter-jdbc'
     implementation 'org.springframework.boot:spring-boot-starter-validation'
     implementation 'org.springframework.boot:spring-boot-starter-actuator'
+    implementation 'org.springframework.security:spring-security-crypto'
     implementation 'org.xerial:sqlite-jdbc:3.49.1.0'
 
     testImplementation 'org.springframework.boot:spring-boot-starter-test'

@@ -5,6 +5,7 @@ import com.taskapp.backend.dto.PhaseResponse;
 import com.taskapp.backend.dto.TaskCreateRequest;
 import com.taskapp.backend.dto.TaskNoteCreateRequest;
 import com.taskapp.backend.dto.TaskNoteResponse;
+import com.taskapp.backend.dto.TaskPinRequest;
 import com.taskapp.backend.dto.TaskResponse;
 import com.taskapp.backend.dto.TaskShareRequest;
 import com.taskapp.backend.dto.TaskShareResponse;
@@ -26,6 +27,7 @@ import com.taskapp.backend.model.TaskShare;
 import com.taskapp.backend.repository.TaskKnowledgeRepository;
 import com.taskapp.backend.repository.TaskNoteRepository;
 import com.taskapp.backend.repository.TaskPhaseRepository;
+import com.taskapp.backend.repository.TaskPinRepository;
 import com.taskapp.backend.repository.TaskRepository;
 import com.taskapp.backend.repository.TaskShareRepository;
 import com.taskapp.backend.repository.UserRepository;
@@ -36,8 +38,11 @@ import java.math.RoundingMode;
 import java.time.LocalDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 @Service
 public class TaskService {
@@ -49,6 +54,7 @@ public class TaskService {
     private final TaskKnowledgeRepository taskKnowledgeRepository;
     private final TaskNoteRepository taskNoteRepository;
     private final TaskShareRepository taskShareRepository;
+    private final TaskPinRepository taskPinRepository;
     private final UserRepository userRepository;
     private final AuthService authService;
 
@@ -58,6 +64,7 @@ public class TaskService {
             TaskKnowledgeRepository taskKnowledgeRepository,
             TaskNoteRepository taskNoteRepository,
             TaskShareRepository taskShareRepository,
+            TaskPinRepository taskPinRepository,
             UserRepository userRepository,
             AuthService authService
     ) {
@@ -66,6 +73,7 @@ public class TaskService {
         this.taskKnowledgeRepository = taskKnowledgeRepository;
         this.taskNoteRepository = taskNoteRepository;
         this.taskShareRepository = taskShareRepository;
+        this.taskPinRepository = taskPinRepository;
         this.userRepository = userRepository;
         this.authService = authService;
     }
@@ -177,6 +185,14 @@ public class TaskService {
         requireOwner(currentUser, existingTask);
 
         taskRepository.deleteById(existingTask.getId());
+    }
+
+    public void setTaskPinned(String authorizationHeader, Long taskId, TaskPinRequest request) {
+        AppUser currentUser = authService.requireUser(authorizationHeader);
+        Task task = taskRepository.findById(taskId)
+                .orElseThrow(() -> new TaskNotFoundException(taskId));
+        requireCanView(currentUser, task);
+        taskPinRepository.setPinned(taskId, currentUser.getId(), request.getPinned(), LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
     }
 
     public TaskNoteResponse addTaskNote(String authorizationHeader, Long taskId, TaskNoteCreateRequest request) {
@@ -297,6 +313,8 @@ public class TaskService {
                 }
 
                 TaskPhase phase = new TaskPhase();
+                phase.setPhaseKey(normalizePhaseKey(request.getPhaseKey(), phases.size() + 1));
+                phase.setParentPhaseKey(normalizeParentPhaseKey(request.getParentPhaseKey()));
                 phase.setPhaseName(phaseName);
                 phase.setPhaseDescription(normalizePhaseDescription(request.getPhaseDescription()));
                 phase.setPhaseStatus(request.getPhaseStatus() == null ? PhaseStatus.TODO : request.getPhaseStatus());
@@ -307,17 +325,69 @@ public class TaskService {
         while (phases.size() < DEFAULT_PHASE_COUNT) {
             int index = phases.size() + 1;
             TaskPhase phase = new TaskPhase();
+            phase.setPhaseKey("phase-" + index);
+            phase.setParentPhaseKey(null);
             phase.setPhaseName("阶段" + index);
             phase.setPhaseDescription(null);
             phase.setPhaseStatus(PhaseStatus.TODO);
             phases.add(phase);
         }
 
+        validateAndApplySiblingSort(phases);
+
+        return phases;
+    }
+
+    private String normalizePhaseKey(String phaseKey, int fallbackIndex) {
+        if (phaseKey == null || phaseKey.isBlank()) {
+            return "phase-" + fallbackIndex;
+        }
+        return phaseKey.trim();
+    }
+
+    private String normalizeParentPhaseKey(String parentPhaseKey) {
+        if (parentPhaseKey == null) {
+            return null;
+        }
+        String trimmed = parentPhaseKey.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private void validateAndApplySiblingSort(List<TaskPhase> phases) {
+        Set<String> phaseKeys = new HashSet<>();
+        Map<String, String> parentByPhaseKey = new HashMap<>();
+
+        for (TaskPhase phase : phases) {
+            String phaseKey = phase.getPhaseKey();
+            if (!phaseKeys.add(phaseKey)) {
+                throw new IllegalArgumentException("phaseKey must be unique within a task");
+            }
+            parentByPhaseKey.put(phaseKey, phase.getParentPhaseKey());
+        }
+
+        for (TaskPhase phase : phases) {
+            String phaseKey = phase.getPhaseKey();
+            String parentPhaseKey = phase.getParentPhaseKey();
+            if (parentPhaseKey != null && !phaseKeys.contains(parentPhaseKey)) {
+                throw new IllegalArgumentException("parentPhaseKey must reference another phase in the same task");
+            }
+            if (phaseKey.equals(parentPhaseKey)) {
+                throw new IllegalArgumentException("phase parent cannot reference itself");
+            }
+
+            Set<String> path = new HashSet<>();
+            String currentPhaseKey = phaseKey;
+            while (currentPhaseKey != null) {
+                if (!path.add(currentPhaseKey)) {
+                    throw new IllegalArgumentException("phase tree cannot contain cycles");
+                }
+                currentPhaseKey = parentByPhaseKey.get(currentPhaseKey);
+            }
+        }
+
         for (int i = 0; i < phases.size(); i++) {
             phases.get(i).setSortOrder(i + 1);
         }
-
-        return phases;
     }
 
     private void applyLegacyPhaseColumns(Task task, List<TaskPhase> phases) {
@@ -400,6 +470,7 @@ public class TaskService {
         response.setOwnedByCurrentUser(isOwner(currentUser, task));
         response.setSharedWithCurrentUser(!isOwner(currentUser, task));
         response.setAccessLevel(resolveAccessLevel(currentUser, task));
+        response.setPinned(task.isPinned());
         response.setPhases(phases.stream().map(this::toPhaseResponse).toList());
         response.setNotes((notes == null ? List.<TaskNote>of() : notes).stream().map(this::toNoteResponse).toList());
         response.setOverallProgress(task.getOverallProgress());
@@ -435,6 +506,8 @@ public class TaskService {
     private PhaseResponse toPhaseResponse(TaskPhase phase) {
         PhaseResponse response = new PhaseResponse();
         response.setId(phase.getId());
+        response.setPhaseKey(phase.getPhaseKey());
+        response.setParentPhaseKey(phase.getParentPhaseKey());
         response.setPhaseName(phase.getPhaseName());
         response.setPhaseDescription(phase.getPhaseDescription());
         response.setPhaseStatus(phase.getPhaseStatus());
@@ -467,6 +540,8 @@ public class TaskService {
     private TaskPhase buildLegacyPhase(Long taskId, String name, PhaseStatus status, int sortOrder) {
         TaskPhase phase = new TaskPhase();
         phase.setTaskId(taskId);
+        phase.setPhaseKey("phase-" + sortOrder);
+        phase.setParentPhaseKey(null);
         phase.setPhaseName(name);
         phase.setPhaseDescription(null);
         phase.setPhaseStatus(status == null ? PhaseStatus.TODO : status);

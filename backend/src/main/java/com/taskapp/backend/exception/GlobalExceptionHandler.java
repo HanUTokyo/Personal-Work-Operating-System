@@ -37,6 +37,18 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.failure(ex.getMessage(), null));
     }
 
+    @ExceptionHandler(GlobalAiSuggestionNotFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handleGlobalAiSuggestionNotFound(GlobalAiSuggestionNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.failure(ex.getMessage(), null));
+    }
+
+    @ExceptionHandler(PersonalTaskNotFoundException.class)
+    public ResponseEntity<ApiResponse<Void>> handlePersonalTaskNotFound(PersonalTaskNotFoundException ex) {
+        return ResponseEntity.status(HttpStatus.NOT_FOUND)
+                .body(ApiResponse.failure(ex.getMessage(), null));
+    }
+
     @ExceptionHandler(UserNotFoundException.class)
     public ResponseEntity<ApiResponse<Void>> handleUserNotFound(UserNotFoundException ex) {
         return ResponseEntity.status(HttpStatus.NOT_FOUND)
@@ -83,6 +95,12 @@ public class GlobalExceptionHandler {
         }
         return ResponseEntity.badRequest()
                 .body(ApiResponse.failure(message, null));
+    }
+
+    @ExceptionHandler(IllegalArgumentException.class)
+    public ResponseEntity<ApiResponse<Void>> handleIllegalArgument(IllegalArgumentException ex) {
+        return ResponseEntity.badRequest()
+                .body(ApiResponse.failure(ex.getMessage(), null));
     }
 
     @ExceptionHandler(Exception.class)

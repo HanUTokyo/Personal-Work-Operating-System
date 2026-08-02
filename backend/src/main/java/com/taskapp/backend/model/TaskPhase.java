@@ -6,6 +6,8 @@ public class TaskPhase {
 
     private Long id;
     private Long taskId;
+    private String phaseKey;
+    private String parentPhaseKey;
     private String phaseName;
     private String phaseDescription;
     private PhaseStatus phaseStatus;
@@ -27,6 +29,22 @@ public class TaskPhase {
 
     public void setTaskId(Long taskId) {
         this.taskId = taskId;
+    }
+
+    public String getPhaseKey() {
+        return phaseKey;
+    }
+
+    public void setPhaseKey(String phaseKey) {
+        this.phaseKey = phaseKey;
+    }
+
+    public String getParentPhaseKey() {
+        return parentPhaseKey;
+    }
+
+    public void setParentPhaseKey(String parentPhaseKey) {
+        this.parentPhaseKey = parentPhaseKey;
     }
 
     public String getPhaseName() {

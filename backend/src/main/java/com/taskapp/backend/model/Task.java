@@ -13,6 +13,7 @@ public class Task {
     private PhaseStatus phase2Status;
     private PhaseStatus phase3Status;
     private double overallProgress;
+    private boolean pinned;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -86,6 +87,14 @@ public class Task {
 
     public void setOverallProgress(double overallProgress) {
         this.overallProgress = overallProgress;
+    }
+
+    public boolean isPinned() {
+        return pinned;
+    }
+
+    public void setPinned(boolean pinned) {
+        this.pinned = pinned;
     }
 
     public LocalDateTime getCreatedAt() {

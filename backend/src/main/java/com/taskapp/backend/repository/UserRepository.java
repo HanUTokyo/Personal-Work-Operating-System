@@ -142,6 +142,20 @@ public class UserRepository {
         updateToken(userId, null, now);
     }
 
+    public void updatePassword(Long userId, String passwordHash, String passwordSalt, LocalDateTime now) {
+        jdbcTemplate.update(
+                """
+                UPDATE users
+                SET password_hash = ?, password_salt = ?, updated_at = ?
+                WHERE id = ?
+                """,
+                passwordHash,
+                passwordSalt,
+                formatDateTime(now),
+                userId
+        );
+    }
+
     private String formatDateTime(LocalDateTime dateTime) {
         return dateTime.truncatedTo(ChronoUnit.SECONDS).format(DB_DATE_TIME_FORMATTER);
     }

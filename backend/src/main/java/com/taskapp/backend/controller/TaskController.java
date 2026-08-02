@@ -1,16 +1,22 @@
 package com.taskapp.backend.controller;
 
 import com.taskapp.backend.dto.ApiResponse;
+import com.taskapp.backend.dto.TaskAiBulkExportResponse;
 import com.taskapp.backend.dto.TaskCreateRequest;
+import com.taskapp.backend.dto.TaskAiExportResponse;
 import com.taskapp.backend.dto.TaskNoteCreateRequest;
 import com.taskapp.backend.dto.TaskNoteResponse;
+import com.taskapp.backend.dto.TaskPinRequest;
 import com.taskapp.backend.dto.TaskResponse;
 import com.taskapp.backend.dto.TaskShareRequest;
 import com.taskapp.backend.dto.TaskShareResponse;
 import com.taskapp.backend.dto.TaskUpdateRequest;
 import com.taskapp.backend.service.TaskService;
+import com.taskapp.backend.service.TaskAiExportService;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.HttpHeaders;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -23,6 +29,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 
 @RestController
@@ -30,9 +37,11 @@ import java.util.List;
 public class TaskController {
 
     private final TaskService taskService;
+    private final TaskAiExportService taskAiExportService;
 
-    public TaskController(TaskService taskService) {
+    public TaskController(TaskService taskService, TaskAiExportService taskAiExportService) {
         this.taskService = taskService;
+        this.taskAiExportService = taskAiExportService;
     }
 
     @GetMapping
@@ -53,6 +62,29 @@ public class TaskController {
     ) {
         TaskResponse task = taskService.getTaskById(authorizationHeader, id);
         return ResponseEntity.ok(ApiResponse.success("Task fetched successfully", task));
+    }
+
+    @GetMapping(value = "/ai-export", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<TaskAiBulkExportResponse> exportAllTasksForAi(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader
+    ) {
+        TaskAiBulkExportResponse export = taskAiExportService.exportAllTasks(authorizationHeader);
+        return ResponseEntity.ok()
+                .contentType(new MediaType("application", "json", StandardCharsets.UTF_8))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"projects-ai-export.json\"")
+                .body(export);
+    }
+
+    @GetMapping(value = "/{id}/ai-export", produces = MediaType.APPLICATION_JSON_VALUE)
+    public ResponseEntity<TaskAiExportResponse> exportTaskForAi(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @PathVariable Long id
+    ) {
+        TaskAiExportResponse export = taskAiExportService.exportTask(authorizationHeader, id);
+        return ResponseEntity.ok()
+                .contentType(new MediaType("application", "json", StandardCharsets.UTF_8))
+                .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"project-" + id + ".json\"")
+                .body(export);
     }
 
     @PostMapping
@@ -82,6 +114,16 @@ public class TaskController {
     ) {
         taskService.deleteTask(authorizationHeader, id);
         return ResponseEntity.ok(ApiResponse.success("Task deleted successfully", null));
+    }
+
+    @PutMapping("/{id}/pin")
+    public ResponseEntity<ApiResponse<Void>> setTaskPinned(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @PathVariable Long id,
+            @Valid @RequestBody TaskPinRequest request
+    ) {
+        taskService.setTaskPinned(authorizationHeader, id, request);
+        return ResponseEntity.ok(ApiResponse.success("Task pin updated successfully", null));
     }
 
     @PostMapping("/{id}/notes")

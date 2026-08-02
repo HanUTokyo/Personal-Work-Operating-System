@@ -17,6 +17,7 @@ public class TaskResponse {
     private boolean ownedByCurrentUser;
     private boolean sharedWithCurrentUser;
     private String accessLevel;
+    private boolean pinned;
     private List<PhaseResponse> phases;
     private List<TaskNoteResponse> notes;
     private double overallProgress;
@@ -117,6 +118,14 @@ public class TaskResponse {
 
     public void setAccessLevel(String accessLevel) {
         this.accessLevel = accessLevel;
+    }
+
+    public boolean isPinned() {
+        return pinned;
+    }
+
+    public void setPinned(boolean pinned) {
+        this.pinned = pinned;
     }
 
     public List<PhaseResponse> getPhases() {

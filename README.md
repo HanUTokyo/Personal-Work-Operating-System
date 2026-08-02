@@ -1,199 +1,136 @@
-# Task Progress Management System
+# Task App
 
-A lightweight project progress management system built with:
+Task App is a lightweight personal and small-team work operating system. The beta3 Web and Backend release combines project execution, personal priorities, knowledge notes, AI suggestions, and lightweight sharing.
 
-- Frontend: HTML + CSS + Vanilla JavaScript
-- Backend: Java 21 + Spring Boot 3.x
-- Database: SQLite
+Current release: `1.0.0-beta.3`
 
-The app supports per-user task data and lightweight task sharing for family or small group use.
+## Features
 
-## 1. Project Structure
+- Weekly and long-term personal task lists
+- Project priorities, pinning, search, sorting, and stale-project indicators
+- Hierarchical project phases with automatic progress calculation
+- Project knowledge, rich-text notes, flash notes, and global AI suggestions
+- Read-only and editable project sharing
+- AI-friendly JSON export for one project or all projects
+- English, Simplified Chinese, and Japanese UI
+- Responsive light, dark, and system themes
+
+## Technology
+
+- Web: React 19, TypeScript, Vite, Mantine, and TipTap
+- Backend: Java 21, Spring Boot 3.5, JDBC, and SQLite
+
+## Repository Layout
 
 ```text
-/Users/kaihan/task-app/
-├─ frontend/
-│  ├─ index.html          # English default UI
-│  ├─ zh.html             # Chinese UI
-│  ├─ app.en.js
-│  ├─ app.zh.js
-│  └─ style.css
-├─ backend/
-│  ├─ src/main/java/...
-│  ├─ src/main/resources/
-│  │  ├─ application.yml
-│  │  ├─ schema.sql
-│  │  ├─ data.sql
-│  │  └─ sample-data-en.sql
-│  ├─ scripts/
-│  │  └─ init_sample_db.sh
-│  └─ build.gradle
-└─ data/
-   └─ tasks.db
+task-app/
+├── frontend/       # React + TypeScript Web client
+├── backend/        # Spring Boot REST API and database migrations
+└── data/           # Local runtime database (ignored by Git)
 ```
 
-## 2. Database Construction (Sample Method)
+## Local Development
 
-To build a fresh SQLite database with pure English sample data:
+Requirements:
+
+- Java 21
+- Node.js 22 or another Vite 7-compatible Node.js release
+- `sqlite3`
+
+Create a disposable English sample database from the committed schema and seed files:
 
 ```bash
-cd /Users/kaihan/task-app
 ./backend/scripts/init_sample_db.sh
 ```
 
-What it does:
+> This command replaces your local `data/tasks.db`. Back up local data before running it.
 
-1. Removes old `/Users/kaihan/task-app/data/tasks.db`
-2. Applies `/Users/kaihan/task-app/backend/src/main/resources/schema.sql`
-3. Seeds `/Users/kaihan/task-app/backend/src/main/resources/sample-data-en.sql`
+Start the backend:
 
-## 3. Run Locally
+```bash
+cd backend
+./gradlew bootRun
+```
 
-### Default Account For Existing Sample Data
+Start the Web client in another terminal:
 
-Runtime migration creates a default owner for existing tasks:
+```bash
+cd frontend
+npm ci
+npm run dev
+```
+
+Open `http://localhost:5173/` for English or `http://localhost:5173/zh.html` for Chinese. The local Web client connects to `http://localhost:8080/api` by default.
+
+To use a different API endpoint:
+
+```bash
+cd frontend
+cp .env.example .env.local
+```
+
+Then edit `VITE_TASK_API_BASE_URL` in `.env.local`.
+
+The sample dataset includes a development-only account:
 
 ```text
 Username: default
 Password: default123
 ```
 
-Use this account to log in after starting the app. New users can also register from the login screen.
+Never use the sample account or seed data in production.
 
-### Start Backend
+## Backend Configuration
 
-For normal local development against the existing `data/tasks.db`, disable SQL seed initialization so the sample insert scripts do not touch SQLite sequences on every boot:
+The backend supports these environment variables:
 
-```bash
-cd /Users/kaihan/task-app/backend
-./gradlew bootRun --args='--spring.sql.init.mode=never'
-```
+| Variable | Default | Purpose |
+| --- | --- | --- |
+| `TASKAPP_DB_URL` | `jdbc:sqlite:../data/tasks.db` | SQLite JDBC connection URL |
+| `TASKAPP_CORS_ALLOWED_ORIGINS` | Local Vite/static-server origins | Comma-separated browser origins allowed to call `/api/**` |
 
-Backend API base URL:
-
-```text
-http://localhost:8080/api
-```
-
-Use the plain `./gradlew bootRun` only when you intentionally want Spring SQL init to run. For a clean sample reset, prefer:
+Example:
 
 ```bash
-cd /Users/kaihan/task-app
-./backend/scripts/init_sample_db.sh
+export TASKAPP_DB_URL='jdbc:sqlite:/opt/task-app/data/tasks.db'
+export TASKAPP_CORS_ALLOWED_ORIGINS='https://tasks.example.com'
 cd backend
 ./gradlew bootRun
 ```
 
-### Start Frontend (Static)
+## Authentication Migration
 
-In a second terminal:
+- New passwords use bcrypt with cost 12.
+- Existing legacy SHA-256 password hashes are accepted once and transparently upgraded after a successful login.
+- The `beta3-invalidate-auth-tokens` database migration invalidates existing sessions exactly once, so users must sign in again after upgrading.
 
-```bash
-cd /Users/kaihan/task-app/frontend
-python3 -m http.server 5500
-```
+If a historical repository database contained real user records, notify those users to change any reused passwords. Removing the database from the current tree does not remove earlier Git objects.
 
-Open in browser:
+## Verification
 
-- English UI: `http://localhost:5500/index.html`
-- Chinese UI: `http://localhost:5500/zh.html`
-
-### Quick Smoke Test
+Run the release checks before opening or merging a pull request:
 
 ```bash
-TOKEN=$(curl -s -X POST http://localhost:8080/api/auth/login \
-  -H 'Content-Type: application/json' \
-  -d '{"username":"default","password":"default123"}' \
-  | sed -E 's/.*"token":"([^"]+)".*/\1/')
-
-curl -s -H "Authorization: Bearer $TOKEN" \
-  'http://localhost:8080/api/tasks?sortBy=priority&order=desc'
+cd frontend && npm ci && npm run build
+cd ../backend && ./gradlew test
 ```
 
-The response should contain `"success":true` and a task list.
+## Data and Secrets
 
-### Stop Local Servers
+- Runtime SQLite databases, backups, logs, PID files, local environment files, signing files, and application binaries are ignored by Git.
+- Commit `schema.sql`, migration code, and sample seed SQL instead of a generated `tasks.db`.
+- Release signing credentials must remain outside the repository.
 
-Press `Ctrl+C` in both the backend and frontend terminal windows.
+## Release Process
 
-## 4. Key Features
+1. Work on a release branch and open a pull request into `main`.
+2. Confirm CI passes and inspect the changed-file list for local data.
+3. Merge only after review.
+4. Create the annotated tag `v1.0.0-beta.3` on the merged commit.
+5. Publish a GitHub prerelease from that tag.
 
-- Multi-project progress tracking
-- User login and per-user task isolation
-- Lightweight task sharing with `VIEW` and `EDIT` permissions
-- Dynamic phases per project
-- Phase description support
-- Progress calculation from phase statuses
-- Search + sorting
-- Project priority
-- Dashboard sections
-- Stale project highlight
-- Soft delete (`is_deleted` flag)
-- Multi-note system per project (`task_notes`)
-- Per-user flash notes
-- Project detail drawer with knowledge preview mode
-- Mobile-adaptive layout
+Changes since beta1 are summarized in [CHANGELOG.md](CHANGELOG.md).
 
-## 5. Main API Endpoints
+## Deployment Notes
 
-- `POST /api/auth/register`
-- `POST /api/auth/login`
-- `GET /api/auth/me`
-- `POST /api/auth/logout`
-- `GET /api/tasks`
-- `GET /api/tasks/{id}`
-- `POST /api/tasks`
-- `PUT /api/tasks/{id}`
-- `DELETE /api/tasks/{id}` (soft delete)
-- `POST /api/tasks/{id}/notes`
-- `GET /api/tasks/{id}/shares`
-- `POST /api/tasks/{id}/shares`
-- `PUT /api/tasks/{id}/shares/{shareId}`
-- `DELETE /api/tasks/{id}/shares/{shareId}`
-
-Except for register/login, task and flash-note APIs require:
-
-```text
-Authorization: Bearer <token>
-```
-
-## 6. Deploy to Oracle VM (Non-Docker)
-
-### Backend
-
-1. Install Java 21 and `sqlite3`
-2. Upload project to `/opt/task-app`
-3. Build and run backend:
-
-```bash
-cd /opt/task-app/backend
-./gradlew build -x test
-nohup ./gradlew bootRun > /opt/task-app/backend/backend.log 2>&1 &
-```
-
-For an already initialized production database, use:
-
-```bash
-nohup ./gradlew bootRun --args='--spring.sql.init.mode=never' > /opt/task-app/backend/backend.log 2>&1 &
-```
-
-### Frontend
-
-Use Nginx or any static server to host `/opt/task-app/frontend`.
-
-### Recommended Production Setup
-
-- Nginx as reverse proxy
-- Serve frontend on port 80/443
-- Proxy `/api` to Spring Boot (port 8080)
-- Keep DB at `/opt/task-app/data/tasks.db`
-
-## 7. Notes
-
-- `spring.sql.init.mode=always` is configured in `application.yml` for first-time schema/sample setup, but day-to-day local or production startup should use `--spring.sql.init.mode=never` after the database exists.
-- For migration safety, runtime SQLite migration logic is handled in `SqliteMigrationConfig`.
-- If you need to reset to the English sample dataset, re-run:
-
-```bash
-./backend/scripts/init_sample_db.sh
-```
+Start the backend from the `backend` directory when using the default relative database path. Production deployments should provide HTTPS, reverse-proxy `/api` to Spring Boot, set an explicit CORS allowlist, maintain database backups, and use service supervision. Do not deploy the committed sample credentials.

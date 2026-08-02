@@ -5,6 +5,8 @@ import com.taskapp.backend.model.PhaseStatus;
 public class PhaseResponse {
 
     private Long id;
+    private String phaseKey;
+    private String parentPhaseKey;
     private String phaseName;
     private String phaseDescription;
     private PhaseStatus phaseStatus;
@@ -16,6 +18,22 @@ public class PhaseResponse {
 
     public void setId(Long id) {
         this.id = id;
+    }
+
+    public String getPhaseKey() {
+        return phaseKey;
+    }
+
+    public void setPhaseKey(String phaseKey) {
+        this.phaseKey = phaseKey;
+    }
+
+    public String getParentPhaseKey() {
+        return parentPhaseKey;
+    }
+
+    public void setParentPhaseKey(String parentPhaseKey) {
+        this.parentPhaseKey = parentPhaseKey;
     }
 
     public String getPhaseName() {
