@@ -14,6 +14,8 @@ public class Task {
     private PhaseStatus phase3Status;
     private double overallProgress;
     private boolean pinned;
+    private boolean archived;
+    private LocalDateTime archivedAt;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -96,6 +98,11 @@ public class Task {
     public void setPinned(boolean pinned) {
         this.pinned = pinned;
     }
+
+    public boolean isArchived() { return archived; }
+    public void setArchived(boolean archived) { this.archived = archived; }
+    public LocalDateTime getArchivedAt() { return archivedAt; }
+    public void setArchivedAt(LocalDateTime archivedAt) { this.archivedAt = archivedAt; }
 
     public LocalDateTime getCreatedAt() {
         return createdAt;

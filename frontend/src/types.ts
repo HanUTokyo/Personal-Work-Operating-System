@@ -49,6 +49,7 @@ export interface Task {
   recentDecisions?: string;
   recentExperiments?: string;
   knowledgeHighlights?: string;
+  currentActionGoal?: string;
   priority?: Priority;
   ownerUserId?: number;
   ownerUsername?: string;
@@ -56,6 +57,8 @@ export interface Task {
   sharedWithCurrentUser?: boolean;
   accessLevel?: AccessLevel;
   pinned?: boolean;
+  archived?: boolean;
+  archivedAt?: string;
   phases?: Phase[];
   notes?: TaskNote[];
   overallProgress: number;
@@ -69,6 +72,7 @@ export interface TaskPayload {
   recentDecisions?: string;
   recentExperiments?: string;
   knowledgeHighlights?: string;
+  currentActionGoal?: string;
   priority: Priority;
   phases: Phase[];
 }

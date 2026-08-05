@@ -39,6 +39,8 @@ public class TaskRepository {
         task.setPriority(parsePriority(rs.getString("priority")));
         task.setOverallProgress(rs.getDouble("overall_progress"));
         task.setPinned(rs.getInt("pinned") != 0);
+        task.setArchived(rs.getInt("is_archived") != 0);
+        task.setArchivedAt(parseDateTime(rs.getString("archived_at")));
         task.setCreatedAt(parseDateTime(rs.getString("created_at")));
         task.setUpdatedAt(parseDateTime(rs.getString("updated_at")));
         return task;
@@ -49,20 +51,26 @@ public class TaskRepository {
     }
 
     public List<Task> findAllForUser(Long userId, String keyword, String sortBy, String order) {
+        return findAllForUser(userId, keyword, sortBy, order, false);
+    }
+
+    public List<Task> findAllForUser(Long userId, String keyword, String sortBy, String order, boolean archived) {
         StringBuilder sql = new StringBuilder("""
                 SELECT DISTINCT tasks.id, tasks.task_title, tasks.task_description, tasks.owner_user_id,
                        tasks.phase1_status, tasks.phase2_status, tasks.phase3_status,
-                       tasks.priority, tasks.overall_progress, tasks.created_at, tasks.updated_at,
+                       tasks.priority, tasks.overall_progress, tasks.created_at, tasks.updated_at, tasks.is_archived, tasks.archived_at,
                        CASE WHEN task_pins.task_id IS NULL THEN 0 ELSE 1 END AS pinned
                 FROM tasks
                 LEFT JOIN task_shares ON task_shares.task_id = tasks.id
                 LEFT JOIN task_pins ON task_pins.task_id = tasks.id AND task_pins.user_id = ?
                 WHERE tasks.is_deleted = 0
+                  AND tasks.is_archived = ?
                   AND (tasks.owner_user_id = ? OR task_shares.shared_with_user_id = ?)
                 """);
 
         List<Object> params = new ArrayList<>();
         params.add(userId);
+        params.add(archived ? 1 : 0);
         params.add(userId);
         params.add(userId);
         if (keyword != null && !keyword.isBlank()) {
@@ -78,7 +86,7 @@ public class TaskRepository {
     public Optional<Task> findById(Long id) {
         String sql = """
                 SELECT id, task_title, task_description, owner_user_id, phase1_status, phase2_status, phase3_status,
-                       priority, overall_progress, created_at, updated_at, 0 AS pinned
+                       priority, overall_progress, created_at, updated_at, 0 AS pinned, is_archived, archived_at
                 FROM tasks
                 WHERE id = ?
                   AND is_deleted = 0
@@ -162,6 +170,11 @@ public class TaskRepository {
                 id
         );
         return affectedRows > 0;
+    }
+
+    public void setArchived(Long id, boolean archived, LocalDateTime now) {
+        jdbcTemplate.update("UPDATE tasks SET is_archived = ?, archived_at = ?, updated_at = ? WHERE id = ? AND is_deleted = 0",
+                archived ? 1 : 0, archived ? formatDateTime(now) : null, formatDateTime(now), id);
     }
 
     private String resolveSortColumn(String sortBy) {

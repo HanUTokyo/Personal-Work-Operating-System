@@ -28,6 +28,8 @@ CREATE TABLE IF NOT EXISTS tasks (
     updated_at DATETIME NOT NULL,
     is_deleted INTEGER NOT NULL DEFAULT 0,
     deleted_at DATETIME,
+    is_archived INTEGER NOT NULL DEFAULT 0,
+    archived_at DATETIME,
     CONSTRAINT fk_tasks_owner FOREIGN KEY(owner_user_id) REFERENCES users(id)
 );
 
@@ -52,6 +54,7 @@ CREATE TABLE IF NOT EXISTS task_knowledge (
     recent_decisions TEXT,
     recent_experiments TEXT,
     knowledge_highlights TEXT,
+    current_action_goal TEXT,
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,
     CONSTRAINT fk_task_knowledge_task FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE
@@ -134,6 +137,7 @@ CREATE INDEX IF NOT EXISTS idx_tasks_title ON tasks(task_title);
 CREATE INDEX IF NOT EXISTS idx_tasks_owner_user_id ON tasks(owner_user_id);
 CREATE INDEX IF NOT EXISTS idx_tasks_updated_at ON tasks(updated_at);
 CREATE INDEX IF NOT EXISTS idx_tasks_progress ON tasks(overall_progress);
+CREATE INDEX IF NOT EXISTS idx_tasks_is_archived ON tasks(is_archived);
 CREATE INDEX IF NOT EXISTS idx_task_phases_task_id ON task_phases(task_id);
 CREATE INDEX IF NOT EXISTS idx_task_phases_parent ON task_phases(task_id, parent_phase_key);
 CREATE INDEX IF NOT EXISTS idx_task_knowledge_updated_at ON task_knowledge(updated_at);

@@ -96,11 +96,12 @@ export const api = {
     return request<UserResponse>("/auth/me");
   },
 
-  tasks(params: { keyword?: string; sortBy?: string; order?: string } = {}) {
+  tasks(params: { keyword?: string; sortBy?: string; order?: string; archived?: boolean } = {}) {
     const url = new URLSearchParams();
     if (params.keyword) url.set("keyword", params.keyword);
     if (params.sortBy) url.set("sortBy", params.sortBy);
     if (params.order) url.set("order", params.order);
+    if (params.archived) url.set("archived", "true");
     const suffix = url.toString() ? `?${url}` : "";
     return request<Task[]>(`/tasks${suffix}`);
   },
@@ -123,6 +124,10 @@ export const api = {
 
   deleteTask(taskId: number) {
     return request<void>(`/tasks/${taskId}`, { method: "DELETE" });
+  },
+
+  setTaskArchived(taskId: number, archived: boolean) {
+    return request<void>(`/tasks/${taskId}/archive`, { method: archived ? "POST" : "DELETE" });
   },
 
   setTaskPinned(taskId: number, pinned: boolean) {

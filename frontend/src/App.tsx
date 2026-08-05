@@ -100,7 +100,8 @@ export function App({ initialLocale }: AppProps) {
         (filter === "active" && !isCompleted(task)) ||
         (filter === "completed" && isCompleted(task)) ||
         (filter === "stuck" && isStuck(task)) ||
-        (filter === "recent" && isRecent(task));
+        (filter === "recent" && isRecent(task)) ||
+        (filter === "archived" && task.archived);
       return matchesQuery && matchesFilter;
     });
     return visible.sort((a, b) => {
@@ -117,8 +118,8 @@ export function App({ initialLocale }: AppProps) {
     });
   }, [filter, keyword, sortBy, sortOrder, tasks]);
 
-  async function loadTasks() {
-    const nextTasks = await api.tasks({ sortBy: "updatedAt", order: "desc" });
+  async function loadTasks(archived = filter === "archived") {
+    const nextTasks = await api.tasks({ sortBy: "updatedAt", order: "desc", archived });
     setTasks(nextTasks);
     setSelectedTaskId((current) => current || nextTasks[0]?.id || null);
   }
@@ -192,6 +193,19 @@ export function App({ initialLocale }: AppProps) {
       showToast(error);
     }
   }
+
+  async function handleArchiveTask(task: Task) {
+    try {
+      await api.setTaskArchived(task.id, !task.archived);
+      await loadTasks();
+    } catch (error) {
+      showToast(error);
+    }
+  }
+
+  useEffect(() => {
+    if (user) void loadTasks(filter === "archived");
+  }, [filter]);
 
   async function handleExportAllProjects() {
     if (exportingAllProjects) return;
@@ -305,6 +319,7 @@ export function App({ initialLocale }: AppProps) {
               onCreate={() => setEditorTask("new")}
               onEdit={(task) => setEditorTask(task)}
               onDelete={handleDeleteTask}
+              onArchive={handleArchiveTask}
               onPin={handleToggleTaskPin}
             />
           </section>

@@ -78,9 +78,13 @@ public class TaskService {
         this.authService = authService;
     }
 
-    public List<TaskResponse> getAllTasks(String authorizationHeader, String keyword, String sortBy, String order) {
+    public List<TaskResponse> getAllTasks(String authorizationHeader, String keyword, String sortBy, String order, boolean archived) {
         AppUser currentUser = authService.requireUser(authorizationHeader);
-        List<Task> tasks = taskRepository.findAllForUser(currentUser.getId(), keyword, sortBy, order);
+        List<Task> tasks = taskRepository.findAllForUser(currentUser.getId(), keyword, sortBy, order, archived);
+        return buildTaskResponses(tasks, currentUser);
+    }
+
+    private List<TaskResponse> buildTaskResponses(List<Task> tasks, AppUser currentUser) {
         List<Long> taskIds = tasks.stream().map(Task::getId).toList();
         Map<Long, List<TaskPhase>> phaseMap = taskPhaseRepository.findByTaskIds(taskIds);
         Map<Long, TaskKnowledge> knowledgeMap = taskKnowledgeRepository.findByTaskIds(taskIds);
@@ -96,6 +100,12 @@ public class TaskService {
                     return toResponse(task, phases, knowledgeMap.get(task.getId()), noteMap.get(task.getId()), currentUser, ownerMap.get(task.getOwnerUserId()));
                 })
                 .toList();
+    }
+
+    public List<TaskResponse> getAllTasks(String authorizationHeader, String keyword, String sortBy, String order) {
+        AppUser currentUser = authService.requireUser(authorizationHeader);
+        List<Task> tasks = taskRepository.findAllForUser(currentUser.getId(), keyword, sortBy, order);
+        return buildTaskResponses(tasks, currentUser);
     }
 
     public TaskResponse getTaskById(String authorizationHeader, Long id) {
@@ -136,6 +146,7 @@ public class TaskService {
                 request.getRecentDecisions(),
                 request.getRecentExperiments(),
                 request.getKnowledgeHighlights(),
+                request.getCurrentActionGoal(),
                 now
         );
 
@@ -168,6 +179,7 @@ public class TaskService {
                 request.getRecentDecisions(),
                 request.getRecentExperiments(),
                 request.getKnowledgeHighlights(),
+                request.getCurrentActionGoal(),
                 now
         );
 
@@ -185,6 +197,13 @@ public class TaskService {
         requireOwner(currentUser, existingTask);
 
         taskRepository.deleteById(existingTask.getId());
+    }
+
+    public void setTaskArchived(String authorizationHeader, Long id, boolean archived) {
+        AppUser currentUser = authService.requireUser(authorizationHeader);
+        Task task = taskRepository.findById(id).orElseThrow(() -> new TaskNotFoundException(id));
+        requireOwner(currentUser, task);
+        taskRepository.setArchived(id, archived, LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
     }
 
     public void setTaskPinned(String authorizationHeader, Long taskId, TaskPinRequest request) {
@@ -464,6 +483,9 @@ public class TaskService {
         response.setRecentDecisions(knowledge == null ? null : knowledge.getRecentDecisions());
         response.setRecentExperiments(knowledge == null ? null : knowledge.getRecentExperiments());
         response.setKnowledgeHighlights(knowledge == null ? null : knowledge.getKnowledgeHighlights());
+        response.setCurrentActionGoal(knowledge == null ? null : knowledge.getCurrentActionGoal());
+        response.setArchived(task.isArchived());
+        response.setArchivedAt(task.getArchivedAt());
         response.setPriority(task.getPriority() == null ? ProjectPriority.MEDIUM.name() : task.getPriority().name());
         response.setOwnerUserId(task.getOwnerUserId());
         response.setOwnerUsername(owner == null ? null : owner.getUsername());

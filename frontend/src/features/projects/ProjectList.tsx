@@ -1,4 +1,4 @@
-import { AlertTriangle, ArrowDownNarrowWide, ArrowUpNarrowWide, Download, Edit3, Pin, PinOff, Plus, Search, Trash2 } from "lucide-react";
+import { AlertTriangle, Archive, ArchiveRestore, ArrowDownNarrowWide, ArrowUpNarrowWide, Download, Edit3, Pin, PinOff, Plus, Search, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { dictionaries, priorityLabel } from "../../i18n";
 import type { Locale, Task } from "../../types";
@@ -26,6 +26,7 @@ export function ProjectList({
   onCreate,
   onEdit,
   onDelete,
+  onArchive,
   onPin
 }: {
   locale: Locale;
@@ -46,10 +47,11 @@ export function ProjectList({
   onCreate: () => void;
   onEdit: (task: Task) => void;
   onDelete: (task: Task) => void;
+  onArchive: (task: Task) => void;
   onPin: (task: Task) => Promise<void>;
 }) {
   const t = dictionaries[locale];
-  const filters: TaskFilter[] = ["all", "active", "completed", "stuck", "recent"];
+  const filters: TaskFilter[] = ["all", "active", "completed", "stuck", "recent", "archived"];
   const [pinningId, setPinningId] = useState<number | null>(null);
 
   async function togglePin(task: Task) {
@@ -111,6 +113,9 @@ export function ProjectList({
                     {task.pinned ? <PinOff size={17} /> : <Pin size={17} />}
                   </button>
                   <button className="icon-only" type="button" onClick={() => onEdit(task)} disabled={!canEdit(task)} title={t.edit}><Edit3 size={17} /></button>
+                  <button className="icon-only" type="button" onClick={() => onArchive(task)} disabled={!canManageShares(task)} title={task.archived ? t.restore : t.archive}>
+                    {task.archived ? <ArchiveRestore size={17} /> : <Archive size={17} />}
+                  </button>
                   <button className="icon-only danger-subtle" type="button" onClick={() => onDelete(task)} disabled={!canManageShares(task)} title={t.delete}><Trash2 size={17} /></button>
                 </div>
               </div>

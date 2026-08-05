@@ -19,9 +19,11 @@ public class SqliteMigrationConfig {
         ensurePriorityColumn();
         ensureTaskOwnerColumn();
         ensureSoftDeleteColumns();
+        ensureTaskArchiveColumns();
         ensurePhaseDescriptionColumn();
         ensurePhaseTreeColumns();
         ensureKnowledgeTable();
+        ensureCurrentActionGoalColumn();
         ensureTaskNotesTable();
         ensureFlashNotesTable();
         ensureFlashNoteOwnerColumn();
@@ -95,6 +97,13 @@ public class SqliteMigrationConfig {
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_task_knowledge_updated_at ON task_knowledge(updated_at)");
     }
 
+    private void ensureCurrentActionGoalColumn() {
+        List<Map<String, Object>> columns = jdbcTemplate.queryForList("PRAGMA table_info(task_knowledge)");
+        boolean present = columns.stream().map(column -> String.valueOf(column.get("name")))
+                .anyMatch(name -> "current_action_goal".equalsIgnoreCase(name));
+        if (!present) jdbcTemplate.execute("ALTER TABLE task_knowledge ADD COLUMN current_action_goal TEXT");
+    }
+
     private void ensureSoftDeleteColumns() {
         List<Map<String, Object>> columns = jdbcTemplate.queryForList("PRAGMA table_info(tasks)");
 
@@ -113,6 +122,17 @@ public class SqliteMigrationConfig {
         }
 
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_tasks_is_deleted ON tasks(is_deleted)");
+    }
+
+    private void ensureTaskArchiveColumns() {
+        List<Map<String, Object>> columns = jdbcTemplate.queryForList("PRAGMA table_info(tasks)");
+        boolean hasArchived = columns.stream().map(column -> String.valueOf(column.get("name")))
+                .anyMatch(name -> "is_archived".equalsIgnoreCase(name));
+        if (!hasArchived) jdbcTemplate.execute("ALTER TABLE tasks ADD COLUMN is_archived INTEGER NOT NULL DEFAULT 0");
+        boolean hasArchivedAt = columns.stream().map(column -> String.valueOf(column.get("name")))
+                .anyMatch(name -> "archived_at".equalsIgnoreCase(name));
+        if (!hasArchivedAt) jdbcTemplate.execute("ALTER TABLE tasks ADD COLUMN archived_at DATETIME");
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_tasks_is_archived ON tasks(is_archived)");
     }
 
     private void ensureTaskOwnerColumn() {

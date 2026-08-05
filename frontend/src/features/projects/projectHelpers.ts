@@ -5,7 +5,7 @@ import type { EditorTab, PhaseDraftMode, TaskFilter } from "./types";
 
 export function filterLabel(filter: TaskFilter, locale: Locale) {
   const t = dictionaries[locale];
-  return { all: t.all, active: t.active, completed: t.completed, stuck: t.stuck, recent: t.recent }[filter];
+  return { all: t.all, active: t.active, completed: t.completed, stuck: t.stuck, recent: t.recent, archived: t.archived }[filter];
 }
 
 export function editorTabLabel(tab: EditorTab, locale: Locale) {

@@ -22,7 +22,7 @@ export function ProjectEditor({ locale, task, onClose, onSaved, onError }: { loc
   const [phases, setPhases] = useState<Phase[]>(() => task ? ensurePhases(task) : normalizePhases([{ phaseKey: "phase-1", phaseName: "", phaseStatus: "TODO" }]));
   const [phaseDraft, setPhaseDraft] = useState<Phase | null>(null);
   const [phaseDraftMode, setPhaseDraftMode] = useState<PhaseDraftMode | null>(null);
-  const [knowledgeDraft, setKnowledgeDraft] = useState<{ field: "recentDecisions" | "recentExperiments" | "knowledgeHighlights"; title: string; value: string } | null>(null);
+  const [knowledgeDraft, setKnowledgeDraft] = useState<{ field: "recentDecisions" | "recentExperiments" | "knowledgeHighlights" | "currentActionGoal"; title: string; value: string } | null>(null);
   const [saving, setSaving] = useState(false);
   const knowledgeNotes = (task?.notes || [])
     .filter((note) => note.noteContent.trim())
@@ -137,6 +137,7 @@ export function ProjectEditor({ locale, task, onClose, onSaved, onError }: { loc
                 ["recentDecisions", t.recentDecisions, form.recentDecisions || ""],
                 ["recentExperiments", t.recentExperiments, form.recentExperiments || ""],
                 ["knowledgeHighlights", t.knowledgeHighlights, form.knowledgeHighlights || ""]
+                ,["currentActionGoal", t.currentActionGoal, form.currentActionGoal || ""]
               ] as const).map(([field, title, value]) => (
                 <article className="knowledge-editor-item" key={field}>
                   <div>

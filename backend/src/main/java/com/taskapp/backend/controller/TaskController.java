@@ -49,9 +49,10 @@ public class TaskController {
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
             @RequestParam(required = false) String keyword,
             @RequestParam(required = false) String sortBy,
-            @RequestParam(required = false) String order
+            @RequestParam(required = false) String order,
+            @RequestParam(defaultValue = "false") boolean archived
     ) {
-        List<TaskResponse> tasks = taskService.getAllTasks(authorizationHeader, keyword, sortBy, order);
+        List<TaskResponse> tasks = taskService.getAllTasks(authorizationHeader, keyword, sortBy, order, archived);
         return ResponseEntity.ok(ApiResponse.success("Tasks fetched successfully", tasks));
     }
 
@@ -114,6 +115,18 @@ public class TaskController {
     ) {
         taskService.deleteTask(authorizationHeader, id);
         return ResponseEntity.ok(ApiResponse.success("Task deleted successfully", null));
+    }
+
+    @PostMapping("/{id}/archive")
+    public ResponseEntity<ApiResponse<Void>> archiveTask(@RequestHeader(value = "Authorization", required = false) String authorizationHeader, @PathVariable Long id) {
+        taskService.setTaskArchived(authorizationHeader, id, true);
+        return ResponseEntity.ok(ApiResponse.success("Task archived successfully", null));
+    }
+
+    @DeleteMapping("/{id}/archive")
+    public ResponseEntity<ApiResponse<Void>> restoreTask(@RequestHeader(value = "Authorization", required = false) String authorizationHeader, @PathVariable Long id) {
+        taskService.setTaskArchived(authorizationHeader, id, false);
+        return ResponseEntity.ok(ApiResponse.success("Task restored successfully", null));
     }
 
     @PutMapping("/{id}/pin")

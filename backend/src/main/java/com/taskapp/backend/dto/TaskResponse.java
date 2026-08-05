@@ -11,6 +11,7 @@ public class TaskResponse {
     private String recentDecisions;
     private String recentExperiments;
     private String knowledgeHighlights;
+    private String currentActionGoal;
     private String priority;
     private Long ownerUserId;
     private String ownerUsername;
@@ -18,6 +19,8 @@ public class TaskResponse {
     private boolean sharedWithCurrentUser;
     private String accessLevel;
     private boolean pinned;
+    private boolean archived;
+    private LocalDateTime archivedAt;
     private List<PhaseResponse> phases;
     private List<TaskNoteResponse> notes;
     private double overallProgress;
@@ -71,6 +74,8 @@ public class TaskResponse {
     public void setKnowledgeHighlights(String knowledgeHighlights) {
         this.knowledgeHighlights = knowledgeHighlights;
     }
+    public String getCurrentActionGoal() { return currentActionGoal; }
+    public void setCurrentActionGoal(String currentActionGoal) { this.currentActionGoal = currentActionGoal; }
 
     public String getPriority() {
         return priority;
@@ -127,6 +132,10 @@ public class TaskResponse {
     public void setPinned(boolean pinned) {
         this.pinned = pinned;
     }
+    public boolean isArchived() { return archived; }
+    public void setArchived(boolean archived) { this.archived = archived; }
+    public LocalDateTime getArchivedAt() { return archivedAt; }
+    public void setArchivedAt(LocalDateTime archivedAt) { this.archivedAt = archivedAt; }
 
     public List<PhaseResponse> getPhases() {
         return phases;
