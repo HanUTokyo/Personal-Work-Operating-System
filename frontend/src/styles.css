@@ -341,6 +341,15 @@ p {
 
 .ai-suggestions-grid { display: grid; gap: 10px; }
 
+.current-action-goals-panel { min-width: 0; }
+.current-action-goals-head h2 { display: inline-flex; align-items: center; gap: 8px; }
+.current-action-goals-head svg { color: var(--primary-strong); }
+.current-action-goals-grid { display: grid; gap: 10px; }
+.current-action-goal-card { padding: 14px; border: 1px solid var(--line); border-radius: 12px; background: var(--surface-soft); }
+.current-action-goal-card > button { border: 0; padding: 0; color: var(--primary-strong); background: transparent; font: inherit; font-weight: 700; cursor: pointer; }
+.current-action-goal-card > button:hover { text-decoration: underline; }
+.current-action-goal-card .rich-text > :last-child { margin-bottom: 0; }
+
 .ai-suggestion-card {
   min-width: 0;
   overflow: hidden;
