@@ -848,13 +848,15 @@ p {
 
 .card-actions {
   display: grid;
-  grid-template-columns: repeat(3, 38px);
+  grid-template-columns: repeat(4, 34px);
   align-content: start;
-  gap: 6px;
+  gap: 4px;
+  flex: 0 0 auto;
 }
 
 .card-actions .icon-only {
-  width: 38px;
+  width: 34px;
+  min-height: 34px;
 }
 
 .card-actions .icon-only.active {
@@ -2070,11 +2072,22 @@ label,
   }
 
   .card-actions {
-    grid-template-columns: repeat(2, 1fr);
+    grid-template-columns: repeat(4, 32px);
+    gap: 3px;
   }
 
-  .icon-only {
+  .icon-only:not(.card-actions .icon-only) {
     width: 100%;
+  }
+
+  .card-actions .icon-only {
+    width: 32px;
+    min-height: 32px;
+  }
+
+  .card-actions .icon-only svg {
+    width: 15px;
+    height: 15px;
   }
 
   .project-detail-page {
