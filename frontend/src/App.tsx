@@ -1,7 +1,7 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { api, clearAuthToken, getAuthToken } from "./api";
 import { dictionaries } from "./i18n";
-import type { GlobalAiSuggestion, Locale, PersonalTask, Task, UserResponse } from "./types";
+import type { GlobalActionGoal, GlobalAiSuggestion, Locale, PersonalTask, Task, UserResponse } from "./types";
 import { computeMetrics, isCompleted, isRecent, isStuck } from "./utils";
 import { AppHeader } from "./components/AppHeader";
 import { AuthScreen } from "./features/auth/AuthScreen";
@@ -34,6 +34,7 @@ export function App({ initialLocale }: AppProps) {
   const [weeklyTasks, setWeeklyTasks] = useState<PersonalTask[]>([]);
   const [longTermTasks, setLongTermTasks] = useState<PersonalTask[]>([]);
   const [aiSuggestions, setAiSuggestions] = useState<GlobalAiSuggestion[]>([]);
+  const [actionGoals, setActionGoals] = useState<GlobalActionGoal[]>([]);
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [keyword, setKeyword] = useState("");
   const [filter, setFilter] = useState<TaskFilter>("all");
@@ -136,9 +137,10 @@ export function App({ initialLocale }: AppProps) {
   async function loadAiSuggestions() {
     setAiSuggestions(await api.aiSuggestions());
   }
+  async function loadActionGoals() { setActionGoals(await api.actionGoals()); }
 
   async function loadHomeData() {
-    await Promise.all([loadTasks(), loadPersonalTasks(), loadAiSuggestions()]);
+    await Promise.all([loadTasks(), loadPersonalTasks(), loadAiSuggestions(), loadActionGoals()]);
   }
 
   function clearSession() {
@@ -148,6 +150,7 @@ export function App({ initialLocale }: AppProps) {
     setWeeklyTasks([]);
     setLongTermTasks([]);
     setAiSuggestions([]);
+    setActionGoals([]);
     setSelectedTaskId(null);
   }
 
@@ -281,9 +284,11 @@ export function App({ initialLocale }: AppProps) {
               weeklyTasks={weeklyTasks}
               longTermTasks={longTermTasks}
               aiSuggestions={aiSuggestions}
+              actionGoals={actionGoals}
               locale={locale}
               onPersonalTasksChanged={loadPersonalTasks}
               onAiSuggestionsChanged={loadAiSuggestions}
+              onActionGoalsChanged={loadActionGoals}
               onError={showToast}
               onSelect={(id) => {
                 setSelectedTaskId(id);

@@ -8,7 +8,6 @@ public class TaskKnowledge {
     private String recentDecisions;
     private String recentExperiments;
     private String knowledgeHighlights;
-    private String currentActionGoal;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -43,8 +42,6 @@ public class TaskKnowledge {
     public void setKnowledgeHighlights(String knowledgeHighlights) {
         this.knowledgeHighlights = knowledgeHighlights;
     }
-    public String getCurrentActionGoal() { return currentActionGoal; }
-    public void setCurrentActionGoal(String currentActionGoal) { this.currentActionGoal = currentActionGoal; }
 
     public LocalDateTime getCreatedAt() {
         return createdAt;

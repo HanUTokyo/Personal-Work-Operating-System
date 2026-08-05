@@ -146,7 +146,6 @@ public class TaskService {
                 request.getRecentDecisions(),
                 request.getRecentExperiments(),
                 request.getKnowledgeHighlights(),
-                request.getCurrentActionGoal(),
                 now
         );
 
@@ -179,7 +178,6 @@ public class TaskService {
                 request.getRecentDecisions(),
                 request.getRecentExperiments(),
                 request.getKnowledgeHighlights(),
-                request.getCurrentActionGoal(),
                 now
         );
 
@@ -483,7 +481,6 @@ public class TaskService {
         response.setRecentDecisions(knowledge == null ? null : knowledge.getRecentDecisions());
         response.setRecentExperiments(knowledge == null ? null : knowledge.getRecentExperiments());
         response.setKnowledgeHighlights(knowledge == null ? null : knowledge.getKnowledgeHighlights());
-        response.setCurrentActionGoal(knowledge == null ? null : knowledge.getCurrentActionGoal());
         response.setArchived(task.isArchived());
         response.setArchivedAt(task.getArchivedAt());
         response.setPriority(task.getPriority() == null ? ProjectPriority.MEDIUM.name() : task.getPriority().name());

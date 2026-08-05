@@ -27,7 +27,6 @@ public class TaskKnowledgeRepository {
         knowledge.setRecentDecisions(rs.getString("recent_decisions"));
         knowledge.setRecentExperiments(rs.getString("recent_experiments"));
         knowledge.setKnowledgeHighlights(rs.getString("knowledge_highlights"));
-        knowledge.setCurrentActionGoal(rs.getString("current_action_goal"));
         knowledge.setCreatedAt(parseDateTime(rs.getString("created_at")));
         knowledge.setUpdatedAt(parseDateTime(rs.getString("updated_at")));
         return knowledge;
@@ -39,7 +38,7 @@ public class TaskKnowledgeRepository {
 
     public Optional<TaskKnowledge> findByTaskId(Long taskId) {
         String sql = """
-                SELECT task_id, recent_decisions, recent_experiments, knowledge_highlights, current_action_goal, created_at, updated_at
+                SELECT task_id, recent_decisions, recent_experiments, knowledge_highlights, created_at, updated_at
                 FROM task_knowledge
                 WHERE task_id = ?
                 """;
@@ -54,7 +53,7 @@ public class TaskKnowledgeRepository {
 
         String placeholders = String.join(",", taskIds.stream().map(id -> "?").toList());
         String sql = """
-                SELECT task_id, recent_decisions, recent_experiments, knowledge_highlights, current_action_goal, created_at, updated_at
+                SELECT task_id, recent_decisions, recent_experiments, knowledge_highlights, created_at, updated_at
                 FROM task_knowledge
                 WHERE task_id IN (%s)
                 """.formatted(placeholders);
@@ -72,13 +71,11 @@ public class TaskKnowledgeRepository {
             String recentDecisions,
             String recentExperiments,
             String knowledgeHighlights,
-            String currentActionGoal,
             LocalDateTime now
     ) {
         String normalizedDecisions = normalizeNote(recentDecisions);
         String normalizedExperiments = normalizeNote(recentExperiments);
         String normalizedHighlights = normalizeNote(knowledgeHighlights);
-        String normalizedActionGoal = normalizeNote(currentActionGoal);
 
         int updatedRows = jdbcTemplate.update(
                 """
@@ -86,14 +83,12 @@ public class TaskKnowledgeRepository {
                 SET recent_decisions = ?,
                     recent_experiments = ?,
                     knowledge_highlights = ?,
-                    current_action_goal = ?,
                     updated_at = ?
                 WHERE task_id = ?
                 """,
                 normalizedDecisions,
                 normalizedExperiments,
-                normalizedHighlights,
-                normalizedActionGoal,
+                    normalizedHighlights,
                 formatDateTime(now),
                 taskId
         );
@@ -105,14 +100,13 @@ public class TaskKnowledgeRepository {
         jdbcTemplate.update(
                 """
                 INSERT INTO task_knowledge (
-                    task_id, recent_decisions, recent_experiments, knowledge_highlights, current_action_goal, created_at, updated_at
-                ) VALUES (?, ?, ?, ?, ?, ?, ?)
+                    task_id, recent_decisions, recent_experiments, knowledge_highlights, created_at, updated_at
+                ) VALUES (?, ?, ?, ?, ?, ?)
                 """,
                 taskId,
                 normalizedDecisions,
                 normalizedExperiments,
                 normalizedHighlights,
-                normalizedActionGoal,
                 formatDateTime(now),
                 formatDateTime(now)
         );

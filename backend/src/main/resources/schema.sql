@@ -54,7 +54,6 @@ CREATE TABLE IF NOT EXISTS task_knowledge (
     recent_decisions TEXT,
     recent_experiments TEXT,
     knowledge_highlights TEXT,
-    current_action_goal TEXT,
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,
     CONSTRAINT fk_task_knowledge_task FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE
@@ -102,6 +101,7 @@ CREATE TABLE IF NOT EXISTS global_ai_suggestions (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     owner_user_id INTEGER NOT NULL,
     content TEXT NOT NULL,
+    suggestion_type TEXT NOT NULL DEFAULT 'AI',
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,
     is_deleted INTEGER NOT NULL DEFAULT 0,

@@ -26,8 +26,6 @@ public class TaskCreateRequest {
     @Size(max = 20000, message = "knowledgeHighlights must be at most 20000 characters")
     private String knowledgeHighlights;
 
-    @Size(max = 20000, message = "currentActionGoal must be at most 20000 characters")
-    private String currentActionGoal;
 
     private ProjectPriority priority;
 
@@ -73,8 +71,6 @@ public class TaskCreateRequest {
     public void setKnowledgeHighlights(String knowledgeHighlights) {
         this.knowledgeHighlights = knowledgeHighlights;
     }
-    public String getCurrentActionGoal() { return currentActionGoal; }
-    public void setCurrentActionGoal(String currentActionGoal) { this.currentActionGoal = currentActionGoal; }
 
     public ProjectPriority getPriority() {
         return priority;

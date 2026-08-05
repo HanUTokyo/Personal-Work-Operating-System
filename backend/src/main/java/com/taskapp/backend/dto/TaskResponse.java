@@ -11,7 +11,6 @@ public class TaskResponse {
     private String recentDecisions;
     private String recentExperiments;
     private String knowledgeHighlights;
-    private String currentActionGoal;
     private String priority;
     private Long ownerUserId;
     private String ownerUsername;
@@ -74,8 +73,6 @@ public class TaskResponse {
     public void setKnowledgeHighlights(String knowledgeHighlights) {
         this.knowledgeHighlights = knowledgeHighlights;
     }
-    public String getCurrentActionGoal() { return currentActionGoal; }
-    public void setCurrentActionGoal(String currentActionGoal) { this.currentActionGoal = currentActionGoal; }
 
     public String getPriority() {
         return priority;

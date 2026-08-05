@@ -3,6 +3,7 @@ import type {
   AuthResponse,
   FlashNote,
   GlobalAiSuggestion,
+  GlobalActionGoal,
   PersonalTask,
   PersonalTaskType,
   Task,
@@ -197,6 +198,22 @@ export const api = {
 
   deleteAiSuggestion(suggestionId: number) {
     return request<void>(`/ai-suggestions/${suggestionId}`, { method: "DELETE" });
+  },
+
+  actionGoals() {
+    return request<GlobalActionGoal[]>("/current-action-goals");
+  },
+
+  createActionGoal(content: string) {
+    return request<GlobalActionGoal>("/current-action-goals", { method: "POST", body: JSON.stringify({ content }) });
+  },
+
+  updateActionGoal(goalId: number, content: string) {
+    return request<GlobalActionGoal>(`/current-action-goals/${goalId}`, { method: "PUT", body: JSON.stringify({ content }) });
+  },
+
+  deleteActionGoal(goalId: number) {
+    return request<void>(`/current-action-goals/${goalId}`, { method: "DELETE" });
   },
 
   personalTasks(type: PersonalTaskType) {

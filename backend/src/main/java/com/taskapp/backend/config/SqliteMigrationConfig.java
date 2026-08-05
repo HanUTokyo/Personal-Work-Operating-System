@@ -23,7 +23,6 @@ public class SqliteMigrationConfig {
         ensurePhaseDescriptionColumn();
         ensurePhaseTreeColumns();
         ensureKnowledgeTable();
-        ensureCurrentActionGoalColumn();
         ensureTaskNotesTable();
         ensureFlashNotesTable();
         ensureFlashNoteOwnerColumn();
@@ -95,13 +94,6 @@ public class SqliteMigrationConfig {
                 )
                 """);
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_task_knowledge_updated_at ON task_knowledge(updated_at)");
-    }
-
-    private void ensureCurrentActionGoalColumn() {
-        List<Map<String, Object>> columns = jdbcTemplate.queryForList("PRAGMA table_info(task_knowledge)");
-        boolean present = columns.stream().map(column -> String.valueOf(column.get("name")))
-                .anyMatch(name -> "current_action_goal".equalsIgnoreCase(name));
-        if (!present) jdbcTemplate.execute("ALTER TABLE task_knowledge ADD COLUMN current_action_goal TEXT");
     }
 
     private void ensureSoftDeleteColumns() {
@@ -383,7 +375,12 @@ public class SqliteMigrationConfig {
                     CONSTRAINT fk_global_ai_suggestions_owner FOREIGN KEY(owner_user_id) REFERENCES users(id)
                 )
                 """);
+        List<Map<String, Object>> columns = jdbcTemplate.queryForList("PRAGMA table_info(global_ai_suggestions)");
+        boolean hasSuggestionType = columns.stream().map(column -> String.valueOf(column.get("name")))
+                .anyMatch(name -> "suggestion_type".equalsIgnoreCase(name));
+        if (!hasSuggestionType) jdbcTemplate.execute("ALTER TABLE global_ai_suggestions ADD COLUMN suggestion_type TEXT NOT NULL DEFAULT 'AI'");
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_global_ai_suggestions_active ON global_ai_suggestions(owner_user_id, is_deleted, updated_at)");
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_global_ai_suggestions_type ON global_ai_suggestions(owner_user_id, suggestion_type, is_deleted, updated_at)");
     }
 
     private Long findDefaultUserId() {

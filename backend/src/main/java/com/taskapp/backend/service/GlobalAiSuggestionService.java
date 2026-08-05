@@ -23,26 +23,30 @@ public class GlobalAiSuggestionService {
         this.authService = authService;
     }
 
-    public List<GlobalAiSuggestionResponse> getAll(String authorizationHeader) {
+    public List<GlobalAiSuggestionResponse> getAll(String authorizationHeader) { return getAll(authorizationHeader, "AI"); }
+    public List<GlobalAiSuggestionResponse> getAll(String authorizationHeader, String type) {
         AppUser user = authService.requireUser(authorizationHeader);
-        return repository.findAll(user.getId()).stream().map(this::toResponse).toList();
+        return repository.findAll(user.getId(), type).stream().map(this::toResponse).toList();
     }
 
-    public GlobalAiSuggestionResponse create(String authorizationHeader, GlobalAiSuggestionCreateRequest request) {
+    public GlobalAiSuggestionResponse create(String authorizationHeader, GlobalAiSuggestionCreateRequest request) { return create(authorizationHeader, request, "AI"); }
+    public GlobalAiSuggestionResponse create(String authorizationHeader, GlobalAiSuggestionCreateRequest request, String type) {
         AppUser user = authService.requireUser(authorizationHeader);
-        return toResponse(repository.save(user.getId(), request.getContent(), now()));
+        return toResponse(repository.save(user.getId(), type, request.getContent(), now()));
     }
 
-    public GlobalAiSuggestionResponse update(String authorizationHeader, Long suggestionId, GlobalAiSuggestionCreateRequest request) {
+    public GlobalAiSuggestionResponse update(String authorizationHeader, Long suggestionId, GlobalAiSuggestionCreateRequest request) { return update(authorizationHeader, suggestionId, request, "AI"); }
+    public GlobalAiSuggestionResponse update(String authorizationHeader, Long suggestionId, GlobalAiSuggestionCreateRequest request, String type) {
         AppUser user = authService.requireUser(authorizationHeader);
-        GlobalAiSuggestion suggestion = repository.update(user.getId(), suggestionId, request.getContent(), now());
+        GlobalAiSuggestion suggestion = repository.update(user.getId(), suggestionId, type, request.getContent(), now());
         if (suggestion == null) throw new GlobalAiSuggestionNotFoundException(suggestionId);
         return toResponse(suggestion);
     }
 
-    public void delete(String authorizationHeader, Long suggestionId) {
+    public void delete(String authorizationHeader, Long suggestionId) { delete(authorizationHeader, suggestionId, "AI"); }
+    public void delete(String authorizationHeader, Long suggestionId, String type) {
         AppUser user = authService.requireUser(authorizationHeader);
-        if (!repository.softDelete(user.getId(), suggestionId, now())) {
+        if (!repository.softDelete(user.getId(), suggestionId, type, now())) {
             throw new GlobalAiSuggestionNotFoundException(suggestionId);
         }
     }

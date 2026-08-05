@@ -49,7 +49,6 @@ export interface Task {
   recentDecisions?: string;
   recentExperiments?: string;
   knowledgeHighlights?: string;
-  currentActionGoal?: string;
   priority?: Priority;
   ownerUserId?: number;
   ownerUsername?: string;
@@ -72,7 +71,6 @@ export interface TaskPayload {
   recentDecisions?: string;
   recentExperiments?: string;
   knowledgeHighlights?: string;
-  currentActionGoal?: string;
   priority: Priority;
   phases: Phase[];
 }
@@ -92,6 +90,13 @@ export interface FlashNote {
 }
 
 export interface GlobalAiSuggestion {
+  id: number;
+  content: string;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface GlobalActionGoal {
   id: number;
   content: string;
   createdAt?: string;

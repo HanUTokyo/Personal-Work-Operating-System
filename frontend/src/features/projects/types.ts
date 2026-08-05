@@ -3,7 +3,7 @@ import type { NoteType, TaskNote } from "../../types";
 export type TaskFilter = "all" | "active" | "completed" | "stuck" | "recent" | "archived";
 export type SortOrder = "asc" | "desc";
 export type EditorTab = "base" | "phases" | "knowledge";
-export type KnowledgeField = "recentDecisions" | "recentExperiments" | "knowledgeHighlights" | "currentActionGoal";
+export type KnowledgeField = "recentDecisions" | "recentExperiments" | "knowledgeHighlights";
 export type KnowledgeDraft =
   | { mode: "create"; noteType: NoteType; value: string }
   | { mode: "edit-note"; note: TaskNote }

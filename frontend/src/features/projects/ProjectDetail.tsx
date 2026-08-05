@@ -200,7 +200,6 @@ export function ProjectDetail({
     { field: "recentDecisions" as const, title: t.recentDecisions, type: "RECENT_DECISIONS" as NoteType, value: task.recentDecisions || "" },
     { field: "recentExperiments" as const, title: t.recentExperiments, type: "RECENT_EXPERIMENTS" as NoteType, value: task.recentExperiments || "" },
     { field: "knowledgeHighlights" as const, title: t.knowledgeHighlights, type: "KNOWLEDGE_HIGHLIGHTS" as NoteType, value: task.knowledgeHighlights || "" }
-    ,{ field: "currentActionGoal" as const, title: t.currentActionGoal, type: "AI_SUGGESTIONS" as NoteType, value: task.currentActionGoal || "" }
   ];
   const noteTypes: NoteType[] = ["RECENT_DECISIONS", "RECENT_EXPERIMENTS", "KNOWLEDGE_HIGHLIGHTS", "AI_SUGGESTIONS"];
 

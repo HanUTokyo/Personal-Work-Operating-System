@@ -1,7 +1,7 @@
 import type { ReactElement } from "react";
 import { Activity, AlertTriangle, BarChart3 } from "lucide-react";
 import { dictionaries } from "../../i18n";
-import type { GlobalAiSuggestion, Locale, ProjectMetrics, Task } from "../../types";
+import type { GlobalActionGoal, GlobalAiSuggestion, Locale, ProjectMetrics, Task } from "../../types";
 import type { PersonalTask } from "../../types";
 import { formatDate, formatProgress, isRecent, isStuck } from "../../utils";
 import { ProgressBar } from "../../components/ui/Progress";
@@ -10,16 +10,18 @@ import { AiSuggestionsPanel } from "./AiSuggestionsPanel";
 import { CurrentActionGoalsPanel } from "./CurrentActionGoalsPanel";
 import { PersonalTaskList } from "./PersonalTaskList";
 
-export function Dashboard({ tasks, metrics, weeklyTasks, longTermTasks, aiSuggestions, locale, onSelect, onPersonalTasksChanged, onAiSuggestionsChanged, onError }: {
+export function Dashboard({ tasks, metrics, weeklyTasks, longTermTasks, aiSuggestions, actionGoals, locale, onSelect, onPersonalTasksChanged, onAiSuggestionsChanged, onActionGoalsChanged, onError }: {
   tasks: Task[];
   metrics: ProjectMetrics;
   weeklyTasks: PersonalTask[];
   longTermTasks: PersonalTask[];
   aiSuggestions: GlobalAiSuggestion[];
+  actionGoals: GlobalActionGoal[];
   locale: Locale;
   onSelect: (id: number) => void;
   onPersonalTasksChanged: () => Promise<void>;
   onAiSuggestionsChanged: () => Promise<void>;
+  onActionGoalsChanged: () => Promise<void>;
   onError: (error: unknown) => void;
 }) {
   const t = dictionaries[locale];
@@ -41,7 +43,7 @@ export function Dashboard({ tasks, metrics, weeklyTasks, longTermTasks, aiSugges
 
       <AiSuggestionsPanel suggestions={aiSuggestions} locale={locale} onChanged={onAiSuggestionsChanged} onError={onError} />
 
-      <CurrentActionGoalsPanel tasks={tasks} locale={locale} onSelect={onSelect} />
+      <CurrentActionGoalsPanel goals={actionGoals} locale={locale} onChanged={onActionGoalsChanged} onError={onError} />
 
       <div className="insight-grid compact-insight-grid">
         <SummaryList title={t.needsAttention} empty={t.noAttention} tasks={stuck} locale={locale} onSelect={onSelect} />
