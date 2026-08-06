@@ -1828,6 +1828,26 @@ label,
 
 .rich-editor {
   min-width: 0;
+  color: var(--text);
+  border-color: var(--line);
+  background: var(--surface);
+}
+
+.rich-editor [contenteditable="true"] {
+  color: var(--text);
+  background: var(--surface);
+}
+
+.rich-editor .rich-editor-toolbar,
+.rich-editor [data-rich-text-editor-control] {
+  color: var(--text);
+  border-color: var(--line);
+  background: var(--surface-soft);
+}
+
+.rich-editor [data-rich-text-editor-control][data-active] {
+  color: var(--primary-strong);
+  background: color-mix(in srgb, var(--primary) 16%, var(--surface));
 }
 
 .rich-editor .ProseMirror {
