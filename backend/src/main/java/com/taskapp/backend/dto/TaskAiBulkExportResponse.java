@@ -11,6 +11,7 @@ public record TaskAiBulkExportResponse(
         List<PersonalTaskResponse> weeklyTasks,
         List<PersonalTaskResponse> longTermTasks,
         List<GlobalAiSuggestionResponse> aiSuggestions,
+        List<GlobalAiSuggestionResponse> currentActionGoals,
         List<FlashNoteResponse> flashNotes
 ) {
 }

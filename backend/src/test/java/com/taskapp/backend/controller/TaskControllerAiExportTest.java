@@ -93,6 +93,7 @@ class TaskControllerAiExportTest {
                 List.of(),
                 List.of(),
                 List.of(),
+                List.of(),
                 List.of()
         );
         when(taskAiExportService.exportAllTasks("Bearer token")).thenReturn(export);
@@ -109,6 +110,7 @@ class TaskControllerAiExportTest {
                 .andExpect(jsonPath("$.weeklyTasks").isEmpty())
                 .andExpect(jsonPath("$.longTermTasks").isEmpty())
                 .andExpect(jsonPath("$.aiSuggestions").isEmpty())
+                .andExpect(jsonPath("$.currentActionGoals").isEmpty())
                 .andExpect(jsonPath("$.flashNotes").isEmpty())
                 .andExpect(jsonPath("$.success").doesNotExist());
     }

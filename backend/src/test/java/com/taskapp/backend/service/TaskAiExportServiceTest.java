@@ -159,12 +159,14 @@ class TaskAiExportServiceTest {
                 .thenReturn(List.of(personalTask(PersonalTaskType.LONG_TERM, "长期优化流程")));
         when(globalAiSuggestionService.getAll("Bearer owner-token"))
                 .thenReturn(List.of(globalAiSuggestion("优先处理停滞项目")));
+        when(globalAiSuggestionService.getAll("Bearer owner-token", "ACTION_GOAL"))
+                .thenReturn(List.of(globalAiSuggestion("完成发布前验证")));
         when(flashNoteService.getAllFlashNotes("Bearer owner-token"))
                 .thenReturn(List.of(flashNote("检查导出结构")));
 
         TaskAiBulkExportResponse response = exportService.exportAllTasks("Bearer owner-token");
 
-        assertThat(response.schemaVersion()).isEqualTo("1.2");
+        assertThat(response.schemaVersion()).isEqualTo("1.3");
         assertThat(response.projectCount()).isEqualTo(1);
         assertThat(response.projects())
                 .extracting(TaskAiExportResponse.Project::id)
@@ -175,6 +177,7 @@ class TaskAiExportServiceTest {
         assertThat(response.weeklyTasks()).extracting(PersonalTaskResponse::getContent).containsExactly("本周完成导出");
         assertThat(response.longTermTasks()).extracting(PersonalTaskResponse::getContent).containsExactly("长期优化流程");
         assertThat(response.aiSuggestions()).extracting(GlobalAiSuggestionResponse::getContent).containsExactly("优先处理停滞项目");
+        assertThat(response.currentActionGoals()).extracting(GlobalAiSuggestionResponse::getContent).containsExactly("完成发布前验证");
         assertThat(response.flashNotes()).extracting(FlashNoteResponse::getNoteContent).containsExactly("检查导出结构");
     }
 

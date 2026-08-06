@@ -20,7 +20,7 @@ import java.util.Map;
 public class TaskAiExportService {
 
     private static final String PROJECT_SCHEMA_VERSION = "1.1";
-    private static final String WORKSPACE_SCHEMA_VERSION = "1.2";
+    private static final String WORKSPACE_SCHEMA_VERSION = "1.3";
 
     private final TaskService taskService;
     private final PersonalTaskService personalTaskService;
@@ -58,6 +58,7 @@ public class TaskAiExportService {
                 personalTaskService.getAll(authorizationHeader, PersonalTaskType.WEEKLY),
                 personalTaskService.getAll(authorizationHeader, PersonalTaskType.LONG_TERM),
                 globalAiSuggestionService.getAll(authorizationHeader),
+                globalAiSuggestionService.getAll(authorizationHeader, "ACTION_GOAL"),
                 flashNoteService.getAllFlashNotes(authorizationHeader)
         );
     }

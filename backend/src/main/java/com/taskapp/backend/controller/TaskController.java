@@ -13,6 +13,8 @@ import com.taskapp.backend.dto.TaskShareResponse;
 import com.taskapp.backend.dto.TaskUpdateRequest;
 import com.taskapp.backend.service.TaskService;
 import com.taskapp.backend.service.TaskAiExportService;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.HttpHeaders;
@@ -38,10 +40,12 @@ public class TaskController {
 
     private final TaskService taskService;
     private final TaskAiExportService taskAiExportService;
+    private final ObjectMapper objectMapper;
 
-    public TaskController(TaskService taskService, TaskAiExportService taskAiExportService) {
+    public TaskController(TaskService taskService, TaskAiExportService taskAiExportService, ObjectMapper objectMapper) {
         this.taskService = taskService;
         this.taskAiExportService = taskAiExportService;
+        this.objectMapper = objectMapper;
     }
 
     @GetMapping
@@ -66,14 +70,14 @@ public class TaskController {
     }
 
     @GetMapping(value = "/ai-export", produces = MediaType.APPLICATION_JSON_VALUE)
-    public ResponseEntity<TaskAiBulkExportResponse> exportAllTasksForAi(
+    public ResponseEntity<String> exportAllTasksForAi(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader
-    ) {
+    ) throws JsonProcessingException {
         TaskAiBulkExportResponse export = taskAiExportService.exportAllTasks(authorizationHeader);
         return ResponseEntity.ok()
                 .contentType(new MediaType("application", "json", StandardCharsets.UTF_8))
                 .header(HttpHeaders.CONTENT_DISPOSITION, "attachment; filename=\"projects-ai-export.json\"")
-                .body(export);
+                .body(objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(export));
     }
 
     @GetMapping(value = "/{id}/ai-export", produces = MediaType.APPLICATION_JSON_VALUE)
