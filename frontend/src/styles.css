@@ -2116,13 +2116,15 @@ label,
 
   .project-page-toolbar {
     min-height: 30px;
+    justify-content: flex-start;
   }
 
   .project-page-toolbar .transparent-back-button {
-    width: 30px;
+    flex: 0 0 30px;
+    width: 30px !important;
     min-height: 30px;
     padding: 0;
-    justify-self: flex-start;
+    align-self: flex-start;
   }
 
   .modal-shell {
