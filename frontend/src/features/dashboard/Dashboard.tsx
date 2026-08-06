@@ -71,7 +71,7 @@ function SummaryList({ title, empty, tasks, locale, onSelect }: { title: string;
         <div className="summary-list">
           {tasks.map((task) => (
             <button key={task.id} className={`summary-item ${isStuck(task) ? "risk" : ""}`} type="button" onClick={() => onSelect(task.id)} title={dictionaries[locale].openProject}>
-              <span>{task.taskTitle || "Untitled"}</span>
+              <span>{task.taskTitle || dictionaries[locale].untitledProject}</span>
               <em>{formatProgress(task.overallProgress)} · {formatDate(task.updatedAt)}</em>
               <ProgressBar value={task.overallProgress} label={formatProgress(task.overallProgress)} />
             </button>

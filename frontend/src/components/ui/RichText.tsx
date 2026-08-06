@@ -63,7 +63,36 @@ export function RichTextEditor({
   }, [editor, value]);
 
   return (
-    <MantineRichTextEditor className="rich-editor" editor={editor} withTypographyStyles={false}>
+    <MantineRichTextEditor
+      className="rich-editor"
+      editor={editor}
+      withTypographyStyles={false}
+      labels={{
+        linkControlLabel: t.link,
+        boldControlLabel: t.bold,
+        italicControlLabel: t.italic,
+        underlineControlLabel: t.underline,
+        strikeControlLabel: t.strikethrough,
+        clearFormattingControlLabel: t.clearFormatting,
+        unlinkControlLabel: t.unlink,
+        bulletListControlLabel: t.bulletList,
+        orderedListControlLabel: t.orderedList,
+        h1ControlLabel: `${t.heading} 1`,
+        h2ControlLabel: `${t.heading} 2`,
+        h3ControlLabel: `${t.heading} 3`,
+        blockquoteControlLabel: t.quote,
+        codeControlLabel: t.inlineCode,
+        codeBlockControlLabel: t.codeBlock,
+        hrControlLabel: t.divider,
+        undoControlLabel: t.undo,
+        redoControlLabel: t.redo,
+        tasksControlLabel: t.taskList,
+        linkEditorInputLabel: t.linkUrl,
+        linkEditorExternalLink: t.openLinkNewTab,
+        linkEditorInternalLink: t.openLinkSameTab,
+        linkEditorSave: t.save
+      }}
+    >
       <MantineRichTextEditor.Toolbar className="rich-editor-toolbar" aria-label={t.richText}>
         <MantineRichTextEditor.ControlsGroup className="rich-editor-controls">
           <MantineRichTextEditor.Bold />
