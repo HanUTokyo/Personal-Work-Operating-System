@@ -23,6 +23,11 @@ export interface UserResponse {
 export interface OnboardingResponse {
   status: string;
   hasDemoData: boolean;
+  guideClosed: boolean;
+  projectDone: boolean;
+  focusDone: boolean;
+  knowledgeDone: boolean;
+  aiDone: boolean;
 }
 
 export interface AuthResponse {

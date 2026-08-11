@@ -17,6 +17,9 @@ public class OnboardingController {
     @PostMapping("/skip") public ResponseEntity<ApiResponse<OnboardingResponse>> skip(@RequestHeader(value = "Authorization", required = false) String auth) {
         return ResponseEntity.ok(ApiResponse.success("Onboarding skipped", service.skip(auth)));
     }
+    @PostMapping("/guide/{action}") public ResponseEntity<ApiResponse<OnboardingResponse>> guide(@RequestHeader(value = "Authorization", required = false) String auth, @PathVariable String action) {
+        return ResponseEntity.ok(ApiResponse.success("Guide updated", service.updateGuide(auth, action)));
+    }
     @PostMapping("/demo-workspace") public ResponseEntity<ApiResponse<OnboardingResponse>> load(@RequestHeader(value = "Authorization", required = false) String auth, @RequestParam(defaultValue = "zh") String locale) {
         return ResponseEntity.ok(ApiResponse.success("Demo workspace loaded", service.loadDemo(auth, locale)));
     }

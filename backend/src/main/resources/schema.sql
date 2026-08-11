@@ -6,6 +6,8 @@ CREATE TABLE IF NOT EXISTS users (
     password_salt TEXT NOT NULL,
     auth_token TEXT,
     onboarding_status TEXT NOT NULL DEFAULT 'ESTABLISHED',
+    onboarding_guide_closed INTEGER NOT NULL DEFAULT 0,
+    onboarding_ai_used INTEGER NOT NULL DEFAULT 0,
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL
 );

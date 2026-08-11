@@ -17,7 +17,7 @@ export function CurrentActionGoalsPanel({ goals, locale, onChanged, onError }: {
     setDeletingId(id);
     try { await api.deleteActionGoal(id); await onChanged(); } catch (error) { onError(error); } finally { setDeletingId(null); }
   }
-  return <section className="panel ai-suggestions-panel">
+  return <section className="panel ai-suggestions-panel" id="current-action-goals">
     <header className="section-head ai-suggestions-panel-head"><h2><Target aria-hidden="true" />{t.currentActionGoal}</h2><div className="ai-suggestions-head-actions">{goals.length > 0 && <span>{goals.length}</span>}<button className="primary-button" type="button" onClick={() => setDraft("new")}><Plus size={16} />{t.newCurrentActionGoal}</button></div></header>
     {goals.length ? <div className="ai-suggestions-grid">{goals.map((goal) => <article className="ai-suggestion-card" key={goal.id}><header className="ai-suggestion-card-head"><time dateTime={goal.updatedAt || goal.createdAt}>{formatDate(goal.updatedAt || goal.createdAt)}</time><div className="inline-actions"><button className="icon-only" type="button" onClick={() => setDraft(goal)} title={t.edit}><Edit3 size={16} /></button><button className="icon-only danger-subtle" type="button" disabled={deletingId === goal.id} onClick={() => remove(goal.id)} title={t.delete}><Trash2 size={16} /></button></div></header><div className="ai-suggestion-content"><RichTextView text={goal.content} /></div></article>)}</div> : <p className="empty-copy">{t.noCurrentActionGoals}</p>}
     {draft && <ActionGoalEditor locale={locale} goal={draft === "new" ? null : draft} onClose={() => setDraft(null)} onSaved={async () => { setDraft(null); await onChanged(); }} onError={onError} />}

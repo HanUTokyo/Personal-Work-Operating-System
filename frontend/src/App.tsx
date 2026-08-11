@@ -7,6 +7,7 @@ import { AppHeader } from "./components/AppHeader";
 import { AuthScreen } from "./features/auth/AuthScreen";
 import { Dashboard } from "./features/dashboard/Dashboard";
 import { DemoWorkspacePanel } from "./features/dashboard/DemoWorkspacePanel";
+import { QuickStartPanel } from "./features/dashboard/QuickStartPanel";
 import { FlashNotes } from "./features/flash/FlashNotes";
 import { ProjectDetail } from "./features/projects/ProjectDetail";
 import { ProjectEditor } from "./features/projects/ProjectEditor";
@@ -146,6 +147,7 @@ export function App({ initialLocale }: AppProps) {
   }
 
   async function refreshOnboarding() { setOnboarding(await api.onboarding()); }
+  async function updateGuide(action: "open" | "close" | "ai-used") { try { setOnboarding(await api.updateGuide(action)); } catch (error) { showToast(error); } }
 
   async function loadDemoWorkspace() { setBusy(true); try { await api.loadDemoWorkspace(locale); await Promise.all([loadHomeData(), refreshOnboarding()]); } catch (error) { showToast(error); } finally { setBusy(false); } }
   async function skipOnboarding() { setBusy(true); try { await api.skipOnboarding(); await refreshOnboarding(); } catch (error) { showToast(error); } finally { setBusy(false); } }
@@ -175,7 +177,7 @@ export function App({ initialLocale }: AppProps) {
         ? await api.login(authForm.username.trim(), authForm.password)
         : await api.register(authForm.username.trim(), authForm.password, authForm.displayName.trim());
       setUser(response.user);
-      setOnboarding({ status: response.user.onboardingStatus || "ESTABLISHED", hasDemoData: false });
+      setOnboarding({ status: response.user.onboardingStatus || "ESTABLISHED", hasDemoData: false, guideClosed: false, projectDone: false, focusDone: false, knowledgeDone: false, aiDone: false });
       await Promise.all([loadHomeData(), refreshOnboarding()]);
       setAuthForm({ username: "", password: "", confirmPassword: "", displayName: "" });
     } catch (error) {
@@ -233,6 +235,7 @@ export function App({ initialLocale }: AppProps) {
       document.body.appendChild(link);
       link.click();
       link.remove();
+      void updateGuide("ai-used");
     } catch (error) {
       showToast(error);
     } finally {
@@ -289,6 +292,16 @@ export function App({ initialLocale }: AppProps) {
         ) : (
           <section className="operations-column">
             <DemoWorkspacePanel locale={locale} onboarding={onboarding} busy={busy} onLoad={loadDemoWorkspace} onClear={clearDemoWorkspace} />
+            <QuickStartPanel
+              locale={locale}
+              onboarding={onboarding}
+              onOpen={() => updateGuide("open")}
+              onClose={() => updateGuide("close")}
+              onCreateProject={() => setEditorTask("new")}
+              onOpenFocus={() => document.getElementById("current-action-goals")?.scrollIntoView({ behavior: "smooth", block: "center" })}
+              onOpenKnowledge={() => setFlashOpen(true)}
+              onOpenAi={() => document.getElementById("ai-suggestions")?.scrollIntoView({ behavior: "smooth", block: "center" })}
+            />
             <Dashboard
               tasks={tasks}
               metrics={metrics}
@@ -300,6 +313,9 @@ export function App({ initialLocale }: AppProps) {
               onPersonalTasksChanged={loadPersonalTasks}
               onAiSuggestionsChanged={loadAiSuggestions}
               onActionGoalsChanged={loadActionGoals}
+              onAiUsed={() => updateGuide("ai-used")}
+              onExportAllProjects={handleExportAllProjects}
+              exportingAllProjects={exportingAllProjects}
               onError={showToast}
               onSelect={(id) => {
                 setSelectedTaskId(id);

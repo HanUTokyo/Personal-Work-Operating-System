@@ -10,7 +10,7 @@ import { AiSuggestionsPanel } from "./AiSuggestionsPanel";
 import { CurrentActionGoalsPanel } from "./CurrentActionGoalsPanel";
 import { PersonalTaskList } from "./PersonalTaskList";
 
-export function Dashboard({ tasks, metrics, weeklyTasks, longTermTasks, aiSuggestions, actionGoals, locale, onSelect, onPersonalTasksChanged, onAiSuggestionsChanged, onActionGoalsChanged, onError }: {
+export function Dashboard({ tasks, metrics, weeklyTasks, longTermTasks, aiSuggestions, actionGoals, locale, onSelect, onPersonalTasksChanged, onAiSuggestionsChanged, onActionGoalsChanged, onAiUsed, onExportAllProjects, exportingAllProjects, onError }: {
   tasks: Task[];
   metrics: ProjectMetrics;
   weeklyTasks: PersonalTask[];
@@ -22,6 +22,9 @@ export function Dashboard({ tasks, metrics, weeklyTasks, longTermTasks, aiSugges
   onPersonalTasksChanged: () => Promise<void>;
   onAiSuggestionsChanged: () => Promise<void>;
   onActionGoalsChanged: () => Promise<void>;
+  onAiUsed: () => void;
+  onExportAllProjects: () => Promise<void>;
+  exportingAllProjects: boolean;
   onError: (error: unknown) => void;
 }) {
   const t = dictionaries[locale];
@@ -41,7 +44,7 @@ export function Dashboard({ tasks, metrics, weeklyTasks, longTermTasks, aiSugges
         <PersonalTaskList locale={locale} type="LONG_TERM" tasks={longTermTasks} onChanged={onPersonalTasksChanged} onError={onError} />
       </div>
 
-      <AiSuggestionsPanel suggestions={aiSuggestions} locale={locale} onChanged={onAiSuggestionsChanged} onError={onError} />
+      <AiSuggestionsPanel suggestions={aiSuggestions} locale={locale} onChanged={onAiSuggestionsChanged} onAiUsed={onAiUsed} onExportAllProjects={onExportAllProjects} exportingAllProjects={exportingAllProjects} onError={onError} />
 
       <CurrentActionGoalsPanel goals={actionGoals} locale={locale} onChanged={onActionGoalsChanged} onError={onError} />
 

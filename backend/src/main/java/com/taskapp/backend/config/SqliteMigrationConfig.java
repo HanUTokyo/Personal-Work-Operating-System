@@ -78,6 +78,8 @@ public class SqliteMigrationConfig {
             jdbcTemplate.execute("ALTER TABLE tasks ADD COLUMN is_demo INTEGER NOT NULL DEFAULT 0");
         }
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_tasks_demo ON tasks(owner_user_id, is_demo, is_deleted)");
+        if (users.stream().noneMatch(column -> "onboarding_guide_closed".equalsIgnoreCase(String.valueOf(column.get("name"))))) jdbcTemplate.execute("ALTER TABLE users ADD COLUMN onboarding_guide_closed INTEGER NOT NULL DEFAULT 0");
+        if (users.stream().noneMatch(column -> "onboarding_ai_used".equalsIgnoreCase(String.valueOf(column.get("name"))))) jdbcTemplate.execute("ALTER TABLE users ADD COLUMN onboarding_ai_used INTEGER NOT NULL DEFAULT 0");
     }
 
     private void ensurePriorityColumn() {
