@@ -339,6 +339,12 @@ p {
   gap: 8px;
 }
 
+.ai-suggestions-head-actions .primary-button,
+.ai-suggestions-head-actions .compact-button {
+  font-size: 14px;
+  line-height: 1.2;
+}
+
 .ai-suggestions-panel-head h2 {
   display: inline-flex;
   align-items: center;
