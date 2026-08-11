@@ -280,13 +280,13 @@ export function App({ initialLocale }: AppProps) {
 
       <main className={(flashOpen || (detailOpen && selectedTask)) ? "project-page-shell" : "workspace home-workspace"}>
         {flashOpen ? (
-          <FlashNotes locale={locale} onClose={() => setFlashOpen(false)} onError={showToast} />
+          <FlashNotes locale={locale} onClose={() => { setFlashOpen(false); void refreshOnboarding(); }} onError={showToast} />
         ) : detailOpen && selectedTask ? (
           <ProjectDetail
             locale={locale}
             task={selectedTask}
             onClose={() => setDetailOpen(false)}
-            onChanged={loadTasks}
+            onChanged={async () => { await loadTasks(); await refreshOnboarding(); }}
             onError={showToast}
           />
         ) : (
@@ -310,9 +310,9 @@ export function App({ initialLocale }: AppProps) {
               aiSuggestions={aiSuggestions}
               actionGoals={actionGoals}
               locale={locale}
-              onPersonalTasksChanged={loadPersonalTasks}
-              onAiSuggestionsChanged={loadAiSuggestions}
-              onActionGoalsChanged={loadActionGoals}
+              onPersonalTasksChanged={async () => { await loadPersonalTasks(); await refreshOnboarding(); }}
+              onAiSuggestionsChanged={async () => { await loadAiSuggestions(); await refreshOnboarding(); }}
+              onActionGoalsChanged={async () => { await loadActionGoals(); await refreshOnboarding(); }}
               onAiUsed={() => updateGuide("ai-used")}
               onExportAllProjects={handleExportAllProjects}
               exportingAllProjects={exportingAllProjects}
@@ -366,6 +366,7 @@ export function App({ initialLocale }: AppProps) {
           onSaved={async () => {
             setEditorTask(null);
             await loadTasks();
+            await refreshOnboarding();
           }}
           onError={showToast}
         />
