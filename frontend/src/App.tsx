@@ -175,6 +175,7 @@ export function App({ initialLocale }: AppProps) {
         ? await api.login(authForm.username.trim(), authForm.password)
         : await api.register(authForm.username.trim(), authForm.password, authForm.displayName.trim());
       setUser(response.user);
+      setOnboarding({ status: response.user.onboardingStatus || "ESTABLISHED", hasDemoData: false });
       await Promise.all([loadHomeData(), refreshOnboarding()]);
       setAuthForm({ username: "", password: "", confirmPassword: "", displayName: "" });
     } catch (error) {
