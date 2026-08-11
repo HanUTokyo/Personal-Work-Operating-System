@@ -2252,6 +2252,8 @@ label,
 .quick-start-panel,
 .quick-start-panel * { min-width: 0; }
 
+.demo-metrics-note { margin: -4px 0 10px; color: var(--muted); font-size: .82rem; }
+
 .quick-start-panel .quick-start-head {
   flex-wrap: wrap;
 }

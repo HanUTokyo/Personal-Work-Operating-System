@@ -94,7 +94,7 @@ export function App({ initialLocale }: AppProps) {
     window.scrollTo({ top: 0, left: 0 });
   }, [mainViewKey]);
 
-  const metrics = useMemo(() => computeMetrics(tasks.filter((task) => !task.demo)), [tasks]);
+  const metrics = useMemo(() => computeMetrics(tasks), [tasks]);
   const displayedTasks = useMemo(() => {
     const query = keyword.trim().toLowerCase();
     const visible = tasks.filter((task) => {
@@ -306,6 +306,7 @@ export function App({ initialLocale }: AppProps) {
             <Dashboard
               tasks={tasks}
               metrics={metrics}
+              includesDemoMetrics={tasks.some((task) => task.demo)}
               weeklyTasks={weeklyTasks}
               longTermTasks={longTermTasks}
               aiSuggestions={aiSuggestions}

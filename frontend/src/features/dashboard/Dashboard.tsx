@@ -10,9 +10,10 @@ import { AiSuggestionsPanel } from "./AiSuggestionsPanel";
 import { CurrentActionGoalsPanel } from "./CurrentActionGoalsPanel";
 import { PersonalTaskList } from "./PersonalTaskList";
 
-export function Dashboard({ tasks, metrics, weeklyTasks, longTermTasks, aiSuggestions, actionGoals, locale, onSelect, onPersonalTasksChanged, onAiSuggestionsChanged, onActionGoalsChanged, onAiUsed, onExportAllProjects, exportingAllProjects, onError }: {
+export function Dashboard({ tasks, metrics, includesDemoMetrics, weeklyTasks, longTermTasks, aiSuggestions, actionGoals, locale, onSelect, onPersonalTasksChanged, onAiSuggestionsChanged, onActionGoalsChanged, onAiUsed, onExportAllProjects, exportingAllProjects, onError }: {
   tasks: Task[];
   metrics: ProjectMetrics;
+  includesDemoMetrics: boolean;
   weeklyTasks: PersonalTask[];
   longTermTasks: PersonalTask[];
   aiSuggestions: GlobalAiSuggestion[];
@@ -38,6 +39,7 @@ export function Dashboard({ tasks, metrics, weeklyTasks, longTermTasks, aiSugges
         <Kpi icon={<Activity />} label={t.activeProjects} value={metrics.doing} />
         <Kpi icon={<AlertTriangle />} label={t.stuckProjects} value={metrics.stuck} tone={metrics.stuck ? "risk" : "ok"} />
       </div>
+      {includesDemoMetrics && <p className="demo-metrics-note">{t.dashboardIncludesDemo}</p>}
 
       <div className="personal-task-grid">
         <PersonalTaskList locale={locale} type="WEEKLY" tasks={weeklyTasks} onChanged={onPersonalTasksChanged} onError={onError} />
