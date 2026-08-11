@@ -297,7 +297,6 @@ export function App({ initialLocale }: AppProps) {
               locale={locale}
               onboarding={onboarding}
               onOpen={() => updateGuide("open")}
-              onClose={() => updateGuide("close")}
               onCreateProject={() => setEditorTask("new")}
               onOpenFocus={() => document.getElementById("current-action-goals")?.scrollIntoView({ behavior: "smooth", block: "center" })}
               onOpenKnowledge={() => setFlashOpen(true)}

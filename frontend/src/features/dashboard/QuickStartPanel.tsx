@@ -3,11 +3,10 @@ import { useState } from "react";
 import { dictionaries } from "../../i18n";
 import type { Locale, OnboardingResponse } from "../../types";
 
-export function QuickStartPanel({ locale, onboarding, onOpen, onClose, onCreateProject, onOpenFocus, onOpenKnowledge, onOpenAi }: {
+export function QuickStartPanel({ locale, onboarding, onOpen, onCreateProject, onOpenFocus, onOpenKnowledge, onOpenAi }: {
   locale: Locale;
   onboarding: OnboardingResponse | null;
   onOpen: () => void;
-  onClose: () => void;
   onCreateProject: () => void;
   onOpenFocus: () => void;
   onOpenKnowledge: () => void;
@@ -31,7 +30,7 @@ export function QuickStartPanel({ locale, onboarding, onOpen, onClose, onCreateP
   return <section className={`panel quick-start-panel ${open ? "is-open" : ""}`}>
     <header className="section-head quick-start-head">
       <div><h2><Rocket aria-hidden="true" />{t.quickStartChecklist}</h2><p>{t.guideProgress.replace("{done}", String(done))}</p></div>
-      <div className="inline-actions"><button className="icon-only" type="button" onClick={toggle} title={open ? t.collapse : t.expand}>{open ? <ChevronUp /> : <ChevronDown />}</button>{open && <button className="ghost-button compact-button" type="button" onClick={() => { setOpen(false); onClose(); }}>{t.closeGuide}</button>}</div>
+      <div className="inline-actions"><button className="icon-only" type="button" onClick={toggle} title={open ? t.collapse : t.expand}>{open ? <ChevronUp /> : <ChevronDown />}</button></div>
     </header>
     {open && <ol className="quick-start-steps">
       {steps.map(([complete, title, copy, action, onClick], index) => <li key={title} className={complete ? "done" : ""}>
