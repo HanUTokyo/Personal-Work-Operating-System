@@ -2290,3 +2290,20 @@ label,
     justify-content: flex-start;
   }
 }
+
+/* The checklist intentionally uses full-width dividers, but its content must not touch the card edge. */
+.quick-start-panel { padding: 0; }
+
+.quick-start-panel .quick-start-head {
+  margin: 0;
+  padding: 14px 16px 12px;
+}
+
+.quick-start-panel .quick-start-steps li {
+  padding: 13px 16px;
+}
+
+@media (max-width: 420px) {
+  .quick-start-panel .quick-start-head,
+  .quick-start-panel .quick-start-steps li { padding-left: 12px; padding-right: 12px; }
+}
