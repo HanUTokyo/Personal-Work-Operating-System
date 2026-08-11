@@ -102,6 +102,7 @@ export const api = {
   skipOnboarding() { return request<OnboardingResponse>("/onboarding/skip", { method: "POST" }); },
   loadDemoWorkspace(locale: string) { return request<OnboardingResponse>(`/onboarding/demo-workspace?locale=${encodeURIComponent(locale)}`, { method: "POST" }); },
   clearDemoWorkspace() { return request<OnboardingResponse>("/onboarding/demo-workspace", { method: "DELETE" }); },
+  finishOnboarding(clearDemo: boolean) { return request<OnboardingResponse>(`/onboarding/finish?clearDemo=${clearDemo}`, { method: "POST" }); },
   updateGuide(action: "open" | "close" | "ai-used") { return request<OnboardingResponse>(`/onboarding/guide/${action}`, { method: "POST" }); },
 
   tasks(params: { keyword?: string; sortBy?: string; order?: string; archived?: boolean } = {}) {

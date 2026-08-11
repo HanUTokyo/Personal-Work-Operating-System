@@ -16,6 +16,12 @@ public class OnboardingService {
     public OnboardingService(AuthService authService, UserRepository users, JdbcTemplate jdbc) { this.authService = authService; this.users = users; this.jdbc = jdbc; }
     public OnboardingResponse get(String auth) { AppUser user = authService.requireUser(auth); return response(user); }
     public OnboardingResponse skip(String auth) { AppUser user = authService.requireUser(auth); users.updateOnboardingStatus(user.getId(), "SKIPPED", now()); user.setOnboardingStatus("SKIPPED"); return response(user); }
+    @Transactional public OnboardingResponse finish(String auth, boolean clearDemo) {
+        AppUser user = authService.requireUser(auth);
+        if (clearDemo) clearDemoData(user.getId());
+        users.updateOnboardingStatus(user.getId(), "COMPLETED", now()); user.setOnboardingStatus("COMPLETED");
+        return response(user);
+    }
     public OnboardingResponse updateGuide(String auth, String action) { AppUser user = authService.requireUser(auth); if ("close".equals(action)) jdbc.update("UPDATE users SET onboarding_guide_closed = 1 WHERE id = ?", user.getId()); if ("open".equals(action)) jdbc.update("UPDATE users SET onboarding_guide_closed = 0 WHERE id = ?", user.getId()); if ("ai-used".equals(action)) jdbc.update("UPDATE users SET onboarding_ai_used = 1 WHERE id = ?", user.getId()); return response(user); }
     @Transactional public OnboardingResponse loadDemo(String auth, String locale) {
         AppUser user = authService.requireUser(auth);
@@ -32,15 +38,17 @@ public class OnboardingService {
     }
     @Transactional public OnboardingResponse clearDemo(String auth) {
         AppUser user = authService.requireUser(auth); Long id = user.getId();
+        clearDemoData(id);
+        users.updateOnboardingStatus(id, "CLEARED", now()); user.setOnboardingStatus("CLEARED"); return response(user);
+    }
+    private void clearDemoData(Long id) {
         jdbc.update("DELETE FROM task_notes WHERE task_id IN (SELECT id FROM tasks WHERE owner_user_id = ? AND is_demo = 1)", id);
         jdbc.update("DELETE FROM task_phases WHERE task_id IN (SELECT id FROM tasks WHERE owner_user_id = ? AND is_demo = 1)", id);
         jdbc.update("DELETE FROM task_knowledge WHERE task_id IN (SELECT id FROM tasks WHERE owner_user_id = ? AND is_demo = 1)", id);
         jdbc.update("DELETE FROM tasks WHERE owner_user_id = ? AND is_demo = 1", id);
-        // Demo entries are identified by their onboarding text prefix; converted entries are never removed by this operation.
         jdbc.update("DELETE FROM personal_tasks WHERE owner_user_id = ? AND content LIKE '[demo]%'", id);
         jdbc.update("DELETE FROM global_ai_suggestions WHERE owner_user_id = ? AND content LIKE '[demo]%'", id);
         jdbc.update("DELETE FROM flash_notes WHERE owner_user_id = ? AND note_content LIKE '[demo]%'", id);
-        users.updateOnboardingStatus(id, "CLEARED", now()); user.setOnboardingStatus("CLEARED"); return response(user);
     }
     private void seedProject(Long owner, String title, String description, String priority, boolean archived, String p1, String p2, String p3) {
         String time = now().format(TIME); jdbc.update("INSERT INTO tasks (task_title, task_description, owner_user_id, phase1_status, phase2_status, phase3_status, priority, overall_progress, is_archived, archived_at, is_demo, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1, ?, ?)", title, description, owner, p1,p2,p3,priority, archived ? 100d : ("DOING".equals(p1) ? 35d : 10d), archived ? 1 : 0, archived ? time : null, time,time);

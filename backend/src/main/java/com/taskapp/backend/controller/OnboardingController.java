@@ -20,6 +20,9 @@ public class OnboardingController {
     @PostMapping("/guide/{action}") public ResponseEntity<ApiResponse<OnboardingResponse>> guide(@RequestHeader(value = "Authorization", required = false) String auth, @PathVariable String action) {
         return ResponseEntity.ok(ApiResponse.success("Guide updated", service.updateGuide(auth, action)));
     }
+    @PostMapping("/finish") public ResponseEntity<ApiResponse<OnboardingResponse>> finish(@RequestHeader(value = "Authorization", required = false) String auth, @RequestParam(defaultValue = "false") boolean clearDemo) {
+        return ResponseEntity.ok(ApiResponse.success("Onboarding finished", service.finish(auth, clearDemo)));
+    }
     @PostMapping("/demo-workspace") public ResponseEntity<ApiResponse<OnboardingResponse>> load(@RequestHeader(value = "Authorization", required = false) String auth, @RequestParam(defaultValue = "zh") String locale) {
         return ResponseEntity.ok(ApiResponse.success("Demo workspace loaded", service.loadDemo(auth, locale)));
     }

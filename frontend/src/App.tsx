@@ -152,6 +152,7 @@ export function App({ initialLocale }: AppProps) {
   async function loadDemoWorkspace() { setBusy(true); try { await api.loadDemoWorkspace(locale); await Promise.all([loadHomeData(), refreshOnboarding()]); } catch (error) { showToast(error); } finally { setBusy(false); } }
   async function skipOnboarding() { setBusy(true); try { await api.skipOnboarding(); await refreshOnboarding(); } catch (error) { showToast(error); } finally { setBusy(false); } }
   async function clearDemoWorkspace() { if (!window.confirm(t.confirmClearDemoWorkspace)) return; setBusy(true); try { await api.clearDemoWorkspace(); await Promise.all([loadHomeData(), refreshOnboarding()]); } catch (error) { showToast(error); } finally { setBusy(false); } }
+  async function finishOnboarding(clearDemo: boolean) { setBusy(true); try { setOnboarding(await api.finishOnboarding(clearDemo)); if (clearDemo) await loadHomeData(); } catch (error) { showToast(error); } finally { setBusy(false); } }
 
   function clearSession() {
     clearAuthToken();
@@ -291,7 +292,7 @@ export function App({ initialLocale }: AppProps) {
           />
         ) : (
           <section className="operations-column">
-            <DemoWorkspacePanel locale={locale} onboarding={onboarding} busy={busy} onLoad={loadDemoWorkspace} onClear={clearDemoWorkspace} />
+            <DemoWorkspacePanel locale={locale} onboarding={onboarding} busy={busy} onLoad={loadDemoWorkspace} onClear={clearDemoWorkspace} onFinish={finishOnboarding} />
             <QuickStartPanel
               locale={locale}
               onboarding={onboarding}

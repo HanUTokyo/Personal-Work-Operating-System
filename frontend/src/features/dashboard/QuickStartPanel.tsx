@@ -15,7 +15,7 @@ export function QuickStartPanel({ locale, onboarding, onOpen, onClose, onCreateP
 }) {
   const t = dictionaries[locale];
   const [open, setOpen] = useState(Boolean(onboarding && onboarding.status === "PENDING" && !onboarding.guideClosed));
-  if (!onboarding) return null;
+  if (!onboarding || onboarding.status === "COMPLETED") return null;
   const steps = [
     [onboarding.projectDone, t.guideProject, t.guideProjectText, t.newProject, onCreateProject],
     [onboarding.focusDone, t.guideFocus, t.guideFocusText, t.guideFocusAction, onOpenFocus],

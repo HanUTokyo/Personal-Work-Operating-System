@@ -207,7 +207,12 @@ const zh = {
   aiGuideExport: "导出全部项目 JSON 后，可由你自行粘贴到 ChatGPT 等外部 AI 获取分析。",
   aiPrivacy: "隐私：应用不会自动向任何外部 AI 发送项目数据；只有你主动下载、复制或粘贴时，数据才会离开应用。",
   copyPrompt: "复制提示词",
-  exportWorkspace: "导出工作区 JSON"
+  exportWorkspace: "导出工作区 JSON",
+  finishQuickStart: "结束快速上手",
+  finishQuickStartWithDemo: "你可以保留示例继续参考，也可以清除所有尚未转为真实数据的示例，然后永久隐藏快速上手与示例工作区。",
+  finishQuickStartEmpty: "结束后，快速上手与示例工作区将不再显示。",
+  keepAndFinish: "保留并结束",
+  clearAndFinish: "清除并结束"
 };
 
 const en: Dictionary = {
@@ -415,7 +420,12 @@ const en: Dictionary = {
   aiGuideExport: "Export all-project JSON, then choose what to paste into ChatGPT or another external AI for analysis.",
   aiPrivacy: "Privacy: the app never sends project data to an external AI automatically. Data leaves the app only when you choose to download, copy, or paste it.",
   copyPrompt: "Copy prompt",
-  exportWorkspace: "Export workspace JSON"
+  exportWorkspace: "Export workspace JSON",
+  finishQuickStart: "Finish quick start",
+  finishQuickStartWithDemo: "You can keep examples for reference, or clear every example that has not become real data. Either choice permanently hides Quick Start and Demo workspace.",
+  finishQuickStartEmpty: "Finishing permanently hides Quick Start and Demo workspace.",
+  keepAndFinish: "Keep and finish",
+  clearAndFinish: "Clear and finish"
 };
 
 const ja: Dictionary = {
@@ -623,7 +633,12 @@ const ja: Dictionary = {
   aiGuideExport: "全プロジェクト JSON を出力し、ChatGPT などの外部 AI に自分で貼り付けて分析できます。",
   aiPrivacy: "プライバシー：アプリがプロジェクトデータを外部 AI に自動送信することはありません。ダウンロード、コピー、貼り付けを自分で行った場合のみ、データはアプリ外に出ます。",
   copyPrompt: "プロンプトをコピー",
-  exportWorkspace: "ワークスペース JSON を出力"
+  exportWorkspace: "ワークスペース JSON を出力",
+  finishQuickStart: "クイックスタートを終了",
+  finishQuickStartWithDemo: "サンプルを参考用に残すか、実データになっていないサンプルをすべて削除できます。どちらを選んでもクイックスタートとサンプルワークスペースは以後表示されません。",
+  finishQuickStartEmpty: "終了すると、クイックスタートとサンプルワークスペースは以後表示されません。",
+  keepAndFinish: "残して終了",
+  clearAndFinish: "削除して終了"
 };
 
 export const dictionaries: Record<Locale, Dictionary> = { zh, en, ja };
