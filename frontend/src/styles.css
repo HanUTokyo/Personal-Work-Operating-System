@@ -792,7 +792,7 @@ p {
 .demo-workspace-panel p { margin: 4px 0 0; color: var(--muted); overflow-wrap: anywhere; }
 .demo-workspace-panel > button { flex: 0 0 auto; white-space: nowrap; }
 .demo-workspace-actions { display: flex; flex: 0 1 auto; flex-wrap: wrap; justify-content: flex-end; gap: 8px; }
-.demo-workspace-actions button { min-height: 40px; padding: 8px 12px; white-space: nowrap; }
+.demo-workspace-actions button { min-height: 40px; padding: 8px 12px; white-space: nowrap; font-size: 14px; line-height: 1.2; }
 .demo-tag { border-color: var(--accent); color: var(--accent); }
 .onboarding-panel { width: min(540px, 100%); }
 @media (max-width: 720px) { .demo-workspace-panel { align-items: stretch; flex-direction: column; } .demo-workspace-panel > button, .demo-workspace-actions { width: 100%; } .demo-workspace-actions button { flex: 1 1 180px; } }
