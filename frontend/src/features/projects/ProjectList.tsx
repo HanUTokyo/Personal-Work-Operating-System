@@ -106,6 +106,7 @@ export function ProjectList({
                 <button className="project-title-line" type="button" onClick={() => onSelect(task.id)}>
                   {isStuck(task) && <AlertTriangle size={16} className="risk-icon" />}
                   <h3>{task.taskTitle || t.untitledProject}</h3>
+                  {task.demo && <span className="tag demo-tag">{t.demoLabel}</span>}
                   {task.sharedWithCurrentUser && <span className="tag">{task.ownerUsername}</span>}
                 </button>
                 <div className="card-actions">

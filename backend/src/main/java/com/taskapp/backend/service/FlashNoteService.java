@@ -41,7 +41,7 @@ public class FlashNoteService {
     public FlashNoteResponse updateFlashNote(String authorizationHeader, Long noteId, FlashNoteCreateRequest request) {
         AppUser currentUser = authService.requireUser(authorizationHeader);
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
-        FlashNote updated = flashNoteRepository.update(currentUser.getId(), noteId, request.getNoteContent(), now);
+        FlashNote updated = flashNoteRepository.update(currentUser.getId(), noteId, removeDemoPrefix(request.getNoteContent()), now);
         if (updated == null) {
             throw new FlashNoteNotFoundException(noteId);
         }
@@ -65,4 +65,5 @@ public class FlashNoteService {
         response.setUpdatedAt(note.getUpdatedAt());
         return response;
     }
+    private String removeDemoPrefix(String value) { return value == null ? null : value.replaceFirst("^\\[demo\\]\\s*", ""); }
 }

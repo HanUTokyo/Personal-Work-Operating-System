@@ -1,11 +1,12 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
 import { api, clearAuthToken, getAuthToken } from "./api";
 import { dictionaries } from "./i18n";
-import type { GlobalActionGoal, GlobalAiSuggestion, Locale, PersonalTask, Task, UserResponse } from "./types";
+import type { GlobalActionGoal, GlobalAiSuggestion, Locale, OnboardingResponse, PersonalTask, Task, UserResponse } from "./types";
 import { computeMetrics, isCompleted, isRecent, isStuck } from "./utils";
 import { AppHeader } from "./components/AppHeader";
 import { AuthScreen } from "./features/auth/AuthScreen";
 import { Dashboard } from "./features/dashboard/Dashboard";
+import { DemoWorkspacePanel } from "./features/dashboard/DemoWorkspacePanel";
 import { FlashNotes } from "./features/flash/FlashNotes";
 import { ProjectDetail } from "./features/projects/ProjectDetail";
 import { ProjectEditor } from "./features/projects/ProjectEditor";
@@ -35,6 +36,7 @@ export function App({ initialLocale }: AppProps) {
   const [longTermTasks, setLongTermTasks] = useState<PersonalTask[]>([]);
   const [aiSuggestions, setAiSuggestions] = useState<GlobalAiSuggestion[]>([]);
   const [actionGoals, setActionGoals] = useState<GlobalActionGoal[]>([]);
+  const [onboarding, setOnboarding] = useState<OnboardingResponse | null>(null);
   const [selectedTaskId, setSelectedTaskId] = useState<number | null>(null);
   const [keyword, setKeyword] = useState("");
   const [filter, setFilter] = useState<TaskFilter>("all");
@@ -65,7 +67,7 @@ export function App({ initialLocale }: AppProps) {
     api.me()
       .then((currentUser) => {
         setUser(currentUser);
-        return loadHomeData();
+        return Promise.all([loadHomeData(), api.onboarding().then(setOnboarding)]);
       })
       .catch(() => clearSession());
   }, []);
@@ -91,7 +93,7 @@ export function App({ initialLocale }: AppProps) {
     window.scrollTo({ top: 0, left: 0 });
   }, [mainViewKey]);
 
-  const metrics = useMemo(() => computeMetrics(tasks), [tasks]);
+  const metrics = useMemo(() => computeMetrics(tasks.filter((task) => !task.demo)), [tasks]);
   const displayedTasks = useMemo(() => {
     const query = keyword.trim().toLowerCase();
     const visible = tasks.filter((task) => {
@@ -143,6 +145,12 @@ export function App({ initialLocale }: AppProps) {
     await Promise.all([loadTasks(), loadPersonalTasks(), loadAiSuggestions(), loadActionGoals()]);
   }
 
+  async function refreshOnboarding() { setOnboarding(await api.onboarding()); }
+
+  async function loadDemoWorkspace() { setBusy(true); try { await api.loadDemoWorkspace(locale); await Promise.all([loadHomeData(), refreshOnboarding()]); } catch (error) { showToast(error); } finally { setBusy(false); } }
+  async function skipOnboarding() { setBusy(true); try { await api.skipOnboarding(); await refreshOnboarding(); } catch (error) { showToast(error); } finally { setBusy(false); } }
+  async function clearDemoWorkspace() { if (!window.confirm(t.confirmClearDemoWorkspace)) return; setBusy(true); try { await api.clearDemoWorkspace(); await Promise.all([loadHomeData(), refreshOnboarding()]); } catch (error) { showToast(error); } finally { setBusy(false); } }
+
   function clearSession() {
     clearAuthToken();
     setUser(null);
@@ -151,6 +159,7 @@ export function App({ initialLocale }: AppProps) {
     setLongTermTasks([]);
     setAiSuggestions([]);
     setActionGoals([]);
+    setOnboarding(null);
     setSelectedTaskId(null);
   }
 
@@ -166,7 +175,7 @@ export function App({ initialLocale }: AppProps) {
         ? await api.login(authForm.username.trim(), authForm.password)
         : await api.register(authForm.username.trim(), authForm.password, authForm.displayName.trim());
       setUser(response.user);
-      await loadHomeData();
+      await Promise.all([loadHomeData(), refreshOnboarding()]);
       setAuthForm({ username: "", password: "", confirmPassword: "", displayName: "" });
     } catch (error) {
       showToast(error);
@@ -278,6 +287,7 @@ export function App({ initialLocale }: AppProps) {
           />
         ) : (
           <section className="operations-column">
+            <DemoWorkspacePanel locale={locale} onboarding={onboarding} busy={busy} onLoad={loadDemoWorkspace} onClear={clearDemoWorkspace} />
             <Dashboard
               tasks={tasks}
               metrics={metrics}
@@ -345,6 +355,7 @@ export function App({ initialLocale }: AppProps) {
       )}
 
       {toast && <div className="toast">{toast}</div>}
+      {onboarding?.status === "PENDING" && <div className="modal-shell" role="dialog" aria-modal="true"><section className="editor-panel onboarding-panel"><header className="editor-head"><div><p className="eyebrow">{t.quickStart}</p><h2>{t.demoWorkspace}</h2></div></header><div className="editor-body"><p>{t.demoWorkspaceIntro}</p></div><footer className="editor-footer"><button className="ghost-button" type="button" disabled={busy} onClick={skipOnboarding}>{t.startBlank}</button><button className="primary-button" type="button" disabled={busy} onClick={loadDemoWorkspace}>{t.loadDemoWorkspace}</button></footer></section></div>}
       {busy && <div className="busy-bar">{t.loading}</div>}
     </div>
   );

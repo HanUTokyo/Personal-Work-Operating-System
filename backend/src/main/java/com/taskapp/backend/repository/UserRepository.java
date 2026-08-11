@@ -32,6 +32,7 @@ public class UserRepository {
         user.setPasswordHash(rs.getString("password_hash"));
         user.setPasswordSalt(rs.getString("password_salt"));
         user.setAuthToken(rs.getString("auth_token"));
+        user.setOnboardingStatus(rs.getString("onboarding_status"));
         user.setCreatedAt(parseDateTime(rs.getString("created_at")));
         user.setUpdatedAt(parseDateTime(rs.getString("updated_at")));
         return user;
@@ -44,7 +45,7 @@ public class UserRepository {
     public Optional<AppUser> findByUsername(String username) {
         List<AppUser> rows = jdbcTemplate.query(
                 """
-                SELECT id, username, display_name, password_hash, password_salt, auth_token, created_at, updated_at
+                SELECT id, username, display_name, password_hash, password_salt, auth_token, onboarding_status, created_at, updated_at
                 FROM users
                 WHERE LOWER(username) = LOWER(?)
                 LIMIT 1
@@ -58,7 +59,7 @@ public class UserRepository {
     public Optional<AppUser> findById(Long userId) {
         List<AppUser> rows = jdbcTemplate.query(
                 """
-                SELECT id, username, display_name, password_hash, password_salt, auth_token, created_at, updated_at
+                SELECT id, username, display_name, password_hash, password_salt, auth_token, onboarding_status, created_at, updated_at
                 FROM users
                 WHERE id = ?
                 LIMIT 1
@@ -72,7 +73,7 @@ public class UserRepository {
     public Optional<AppUser> findByToken(String token) {
         List<AppUser> rows = jdbcTemplate.query(
                 """
-                SELECT id, username, display_name, password_hash, password_salt, auth_token, created_at, updated_at
+                SELECT id, username, display_name, password_hash, password_salt, auth_token, onboarding_status, created_at, updated_at
                 FROM users
                 WHERE auth_token = ?
                 LIMIT 1
@@ -90,7 +91,7 @@ public class UserRepository {
 
         String placeholders = String.join(",", java.util.Collections.nCopies(userIds.size(), "?"));
         String sql = """
-                SELECT id, username, display_name, password_hash, password_salt, auth_token, created_at, updated_at
+                SELECT id, username, display_name, password_hash, password_salt, auth_token, onboarding_status, created_at, updated_at
                 FROM users
                 WHERE id IN (%s)
                 """.formatted(placeholders);
@@ -103,8 +104,8 @@ public class UserRepository {
 
     public AppUser save(AppUser user) {
         String sql = """
-                INSERT INTO users (username, display_name, password_hash, password_salt, auth_token, created_at, updated_at)
-                VALUES (?, ?, ?, ?, ?, ?, ?)
+                INSERT INTO users (username, display_name, password_hash, password_salt, auth_token, onboarding_status, created_at, updated_at)
+                VALUES (?, ?, ?, ?, ?, ?, ?, ?)
                 """;
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(connection -> {
@@ -114,8 +115,9 @@ public class UserRepository {
             ps.setString(3, user.getPasswordHash());
             ps.setString(4, user.getPasswordSalt());
             ps.setString(5, user.getAuthToken());
-            ps.setString(6, formatDateTime(user.getCreatedAt()));
-            ps.setString(7, formatDateTime(user.getUpdatedAt()));
+            ps.setString(6, user.getOnboardingStatus());
+            ps.setString(7, formatDateTime(user.getCreatedAt()));
+            ps.setString(8, formatDateTime(user.getUpdatedAt()));
             return ps;
         }, keyHolder);
 
@@ -154,6 +156,10 @@ public class UserRepository {
                 formatDateTime(now),
                 userId
         );
+    }
+
+    public void updateOnboardingStatus(Long userId, String status, LocalDateTime now) {
+        jdbcTemplate.update("UPDATE users SET onboarding_status = ?, updated_at = ? WHERE id = ?", status, formatDateTime(now), userId);
     }
 
     private String formatDateTime(LocalDateTime dateTime) {

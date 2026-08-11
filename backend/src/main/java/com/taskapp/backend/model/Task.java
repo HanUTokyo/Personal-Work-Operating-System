@@ -16,6 +16,7 @@ public class Task {
     private boolean pinned;
     private boolean archived;
     private LocalDateTime archivedAt;
+    private boolean demo;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -103,6 +104,8 @@ public class Task {
     public void setArchived(boolean archived) { this.archived = archived; }
     public LocalDateTime getArchivedAt() { return archivedAt; }
     public void setArchivedAt(LocalDateTime archivedAt) { this.archivedAt = archivedAt; }
+    public boolean isDemo() { return demo; }
+    public void setDemo(boolean demo) { this.demo = demo; }
 
     public LocalDateTime getCreatedAt() {
         return createdAt;

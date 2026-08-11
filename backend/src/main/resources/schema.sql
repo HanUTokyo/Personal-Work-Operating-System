@@ -5,6 +5,7 @@ CREATE TABLE IF NOT EXISTS users (
     password_hash TEXT NOT NULL,
     password_salt TEXT NOT NULL,
     auth_token TEXT,
+    onboarding_status TEXT NOT NULL DEFAULT 'ESTABLISHED',
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL
 );
@@ -30,6 +31,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     deleted_at DATETIME,
     is_archived INTEGER NOT NULL DEFAULT 0,
     archived_at DATETIME,
+    is_demo INTEGER NOT NULL DEFAULT 0,
     CONSTRAINT fk_tasks_owner FOREIGN KEY(owner_user_id) REFERENCES users(id)
 );
 

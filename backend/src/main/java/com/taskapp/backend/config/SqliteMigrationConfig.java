@@ -15,6 +15,7 @@ public class SqliteMigrationConfig {
     public SqliteMigrationConfig(JdbcTemplate jdbcTemplate) {
         this.jdbcTemplate = jdbcTemplate;
         ensureUsersTable();
+        ensureOnboardingAndDemoColumns();
         ensureDefaultUser();
         ensurePriorityColumn();
         ensureTaskOwnerColumn();
@@ -65,6 +66,18 @@ public class SqliteMigrationConfig {
                     new BCryptPasswordEncoder(12).encode("default123")
             );
         }
+    }
+
+    private void ensureOnboardingAndDemoColumns() {
+        List<Map<String, Object>> users = jdbcTemplate.queryForList("PRAGMA table_info(users)");
+        if (users.stream().noneMatch(column -> "onboarding_status".equalsIgnoreCase(String.valueOf(column.get("name"))))) {
+            jdbcTemplate.execute("ALTER TABLE users ADD COLUMN onboarding_status TEXT NOT NULL DEFAULT 'ESTABLISHED'");
+        }
+        List<Map<String, Object>> tasks = jdbcTemplate.queryForList("PRAGMA table_info(tasks)");
+        if (tasks.stream().noneMatch(column -> "is_demo".equalsIgnoreCase(String.valueOf(column.get("name"))))) {
+            jdbcTemplate.execute("ALTER TABLE tasks ADD COLUMN is_demo INTEGER NOT NULL DEFAULT 0");
+        }
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_tasks_demo ON tasks(owner_user_id, is_demo, is_deleted)");
     }
 
     private void ensurePriorityColumn() {

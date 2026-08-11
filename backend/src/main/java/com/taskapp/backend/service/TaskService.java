@@ -172,6 +172,8 @@ public class TaskService {
         existingTask.setUpdatedAt(now);
 
         Task updatedTask = taskRepository.update(existingTask);
+        taskRepository.setDemo(id, false);
+        updatedTask.setDemo(false);
         taskPhaseRepository.replaceAll(id, normalizedPhases, now);
         taskKnowledgeRepository.upsert(
                 id,
@@ -201,6 +203,7 @@ public class TaskService {
         AppUser currentUser = authService.requireUser(authorizationHeader);
         Task task = taskRepository.findById(id).orElseThrow(() -> new TaskNotFoundException(id));
         requireOwner(currentUser, task);
+        taskRepository.setDemo(id, false);
         taskRepository.setArchived(id, archived, LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
     }
 
@@ -209,6 +212,7 @@ public class TaskService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new TaskNotFoundException(taskId));
         requireCanView(currentUser, task);
+        taskRepository.setDemo(taskId, false);
         taskPinRepository.setPinned(taskId, currentUser.getId(), request.getPinned(), LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
     }
 
@@ -217,6 +221,7 @@ public class TaskService {
         Task existingTask = taskRepository.findById(taskId)
                 .orElseThrow(() -> new TaskNotFoundException(taskId));
         requireCanEdit(currentUser, existingTask);
+        taskRepository.setDemo(taskId, false);
 
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         TaskNote saved = taskNoteRepository.save(
@@ -233,6 +238,7 @@ public class TaskService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new TaskNotFoundException(taskId));
         requireCanEdit(currentUser, task);
+        taskRepository.setDemo(taskId, false);
 
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         TaskNote updated = taskNoteRepository.update(
@@ -253,6 +259,7 @@ public class TaskService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new TaskNotFoundException(taskId));
         requireCanEdit(currentUser, task);
+        taskRepository.setDemo(taskId, false);
 
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         boolean deleted = taskNoteRepository.softDelete(noteId, taskId, now);
@@ -483,6 +490,7 @@ public class TaskService {
         response.setKnowledgeHighlights(knowledge == null ? null : knowledge.getKnowledgeHighlights());
         response.setArchived(task.isArchived());
         response.setArchivedAt(task.getArchivedAt());
+        response.setDemo(task.isDemo());
         response.setPriority(task.getPriority() == null ? ProjectPriority.MEDIUM.name() : task.getPriority().name());
         response.setOwnerUserId(task.getOwnerUserId());
         response.setOwnerUsername(owner == null ? null : owner.getUsername());

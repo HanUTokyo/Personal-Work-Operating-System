@@ -10,6 +10,7 @@ public class AppUser {
     private String passwordHash;
     private String passwordSalt;
     private String authToken;
+    private String onboardingStatus;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
 
@@ -60,6 +61,8 @@ public class AppUser {
     public void setAuthToken(String authToken) {
         this.authToken = authToken;
     }
+    public String getOnboardingStatus() { return onboardingStatus; }
+    public void setOnboardingStatus(String onboardingStatus) { this.onboardingStatus = onboardingStatus; }
 
     public LocalDateTime getCreatedAt() {
         return createdAt;

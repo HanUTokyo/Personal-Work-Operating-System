@@ -13,6 +13,7 @@ import type {
   SharePermission,
   UserResponse,
   NoteType
+  ,OnboardingResponse
 } from "./types";
 
 const API_BASE_URL =
@@ -96,6 +97,11 @@ export const api = {
   me() {
     return request<UserResponse>("/auth/me");
   },
+
+  onboarding() { return request<OnboardingResponse>("/onboarding"); },
+  skipOnboarding() { return request<OnboardingResponse>("/onboarding/skip", { method: "POST" }); },
+  loadDemoWorkspace(locale: string) { return request<OnboardingResponse>(`/onboarding/demo-workspace?locale=${encodeURIComponent(locale)}`, { method: "POST" }); },
+  clearDemoWorkspace() { return request<OnboardingResponse>("/onboarding/demo-workspace", { method: "DELETE" }); },
 
   tasks(params: { keyword?: string; sortBy?: string; order?: string; archived?: boolean } = {}) {
     const url = new URLSearchParams();

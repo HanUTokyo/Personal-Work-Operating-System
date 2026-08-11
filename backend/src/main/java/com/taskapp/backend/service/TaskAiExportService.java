@@ -5,6 +5,7 @@ import com.taskapp.backend.dto.TaskAiBulkExportResponse;
 import com.taskapp.backend.dto.TaskAiExportResponse;
 import com.taskapp.backend.dto.TaskNoteResponse;
 import com.taskapp.backend.dto.TaskResponse;
+import com.taskapp.backend.exception.AuthorizationException;
 import com.taskapp.backend.model.NoteType;
 import com.taskapp.backend.model.PersonalTaskType;
 import org.springframework.stereotype.Service;
@@ -41,6 +42,7 @@ public class TaskAiExportService {
 
     public TaskAiExportResponse exportTask(String authorizationHeader, Long taskId) {
         TaskResponse task = taskService.getTaskById(authorizationHeader, taskId);
+        if (task.isDemo()) throw new AuthorizationException("Demo projects are excluded from export. Edit the project to make it real data.");
         return new TaskAiExportResponse(PROJECT_SCHEMA_VERSION, Instant.now(), toExportProject(task));
     }
 
@@ -48,6 +50,7 @@ public class TaskAiExportService {
         List<TaskAiExportResponse.Project> projects = taskService
                 .getAllTasks(authorizationHeader, null, "taskTitle", "asc")
                 .stream()
+                .filter(task -> !task.isDemo())
                 .map(this::toExportProject)
                 .toList();
         return new TaskAiBulkExportResponse(

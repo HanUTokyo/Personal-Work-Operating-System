@@ -5,6 +5,7 @@ public class UserResponse {
     private Long id;
     private String username;
     private String displayName;
+    private String onboardingStatus;
 
     public Long getId() {
         return id;
@@ -29,4 +30,6 @@ public class UserResponse {
     public void setDisplayName(String displayName) {
         this.displayName = displayName;
     }
+    public String getOnboardingStatus() { return onboardingStatus; }
+    public void setOnboardingStatus(String onboardingStatus) { this.onboardingStatus = onboardingStatus; }
 }

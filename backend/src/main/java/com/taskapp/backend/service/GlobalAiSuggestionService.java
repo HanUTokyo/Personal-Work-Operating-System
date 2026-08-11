@@ -38,7 +38,7 @@ public class GlobalAiSuggestionService {
     public GlobalAiSuggestionResponse update(String authorizationHeader, Long suggestionId, GlobalAiSuggestionCreateRequest request) { return update(authorizationHeader, suggestionId, request, "AI"); }
     public GlobalAiSuggestionResponse update(String authorizationHeader, Long suggestionId, GlobalAiSuggestionCreateRequest request, String type) {
         AppUser user = authService.requireUser(authorizationHeader);
-        GlobalAiSuggestion suggestion = repository.update(user.getId(), suggestionId, type, request.getContent(), now());
+        GlobalAiSuggestion suggestion = repository.update(user.getId(), suggestionId, type, removeDemoPrefix(request.getContent()), now());
         if (suggestion == null) throw new GlobalAiSuggestionNotFoundException(suggestionId);
         return toResponse(suggestion);
     }
@@ -54,6 +54,7 @@ public class GlobalAiSuggestionService {
     private LocalDateTime now() {
         return LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
     }
+    private String removeDemoPrefix(String value) { return value == null ? null : value.replaceFirst("^\\[demo\\]\\s*", ""); }
 
     private GlobalAiSuggestionResponse toResponse(GlobalAiSuggestion suggestion) {
         GlobalAiSuggestionResponse response = new GlobalAiSuggestionResponse();

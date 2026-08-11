@@ -43,6 +43,7 @@ public class AuthService {
         user.setPasswordSalt("");
         user.setPasswordHash(passwordEncoder.encode(request.getPassword()));
         user.setAuthToken(generateToken());
+        user.setOnboardingStatus("PENDING");
         user.setCreatedAt(now);
         user.setUpdatedAt(now);
 
@@ -95,6 +96,7 @@ public class AuthService {
         response.setId(user.getId());
         response.setUsername(user.getUsername());
         response.setDisplayName(user.getDisplayName());
+        response.setOnboardingStatus(user.getOnboardingStatus());
         return response;
     }
 

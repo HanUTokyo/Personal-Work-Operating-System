@@ -20,6 +20,7 @@ public class TaskResponse {
     private boolean pinned;
     private boolean archived;
     private LocalDateTime archivedAt;
+    private boolean demo;
     private List<PhaseResponse> phases;
     private List<TaskNoteResponse> notes;
     private double overallProgress;
@@ -133,6 +134,8 @@ public class TaskResponse {
     public void setArchived(boolean archived) { this.archived = archived; }
     public LocalDateTime getArchivedAt() { return archivedAt; }
     public void setArchivedAt(LocalDateTime archivedAt) { this.archivedAt = archivedAt; }
+    public boolean isDemo() { return demo; }
+    public void setDemo(boolean demo) { this.demo = demo; }
 
     public List<PhaseResponse> getPhases() {
         return phases;

@@ -17,6 +17,12 @@ export interface UserResponse {
   id: number;
   username: string;
   displayName?: string;
+  onboardingStatus?: string;
+}
+
+export interface OnboardingResponse {
+  status: string;
+  hasDemoData: boolean;
 }
 
 export interface AuthResponse {
@@ -58,6 +64,7 @@ export interface Task {
   pinned?: boolean;
   archived?: boolean;
   archivedAt?: string;
+  demo?: boolean;
   phases?: Phase[];
   notes?: TaskNote[];
   overallProgress: number;

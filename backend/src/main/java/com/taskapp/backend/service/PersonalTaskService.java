@@ -44,7 +44,7 @@ public class PersonalTaskService {
         PersonalTask existing = repository.findById(user.getId(), taskId)
                 .orElseThrow(() -> new PersonalTaskNotFoundException(taskId));
         boolean pinned = request.getPinned() != null ? request.getPinned() : existing.isPinned();
-        PersonalTask task = repository.update(user.getId(), taskId, request.getContent(), request.getCompleted(), pinned, now());
+        PersonalTask task = repository.update(user.getId(), taskId, removeDemoPrefix(request.getContent()), request.getCompleted(), pinned, now());
         if (task == null) throw new PersonalTaskNotFoundException(taskId);
         return toResponse(task);
     }
@@ -72,6 +72,7 @@ public class PersonalTaskService {
     private LocalDateTime now() {
         return LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
     }
+    private String removeDemoPrefix(String value) { return value == null ? null : value.replaceFirst("^\\[demo\\]\\s*", ""); }
 
     private PersonalTaskResponse toResponse(PersonalTask task) {
         PersonalTaskResponse response = new PersonalTaskResponse();

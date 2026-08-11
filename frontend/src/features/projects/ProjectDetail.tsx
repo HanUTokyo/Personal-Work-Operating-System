@@ -234,7 +234,7 @@ export function ProjectDetail({
         <div className="detail-actions">
           {titleDraft === null ? (
             <>
-              <button className="secondary-button" type="button" onClick={downloadAiJson} disabled={exportingAiJson}>
+              <button className="secondary-button" type="button" onClick={downloadAiJson} disabled={exportingAiJson || task.demo} title={task.demo ? t.demoExportUnavailable : undefined}>
                 <Download size={17} />{exportingAiJson ? t.exportingAiJson : t.exportAiJson}
               </button>
               <button className="secondary-button" type="button" onClick={() => setShareOpen(true)} disabled={!canManageShares(task)}><Share2 size={17} />{t.shareProject}</button>
