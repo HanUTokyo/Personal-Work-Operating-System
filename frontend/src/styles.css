@@ -2247,3 +2247,44 @@ label,
     max-height: 68dvh;
   }
 }
+
+/* Keep long localized onboarding copy inside its card at every viewport width. */
+.quick-start-panel,
+.quick-start-panel * { min-width: 0; }
+
+.quick-start-panel .quick-start-head {
+  flex-wrap: wrap;
+}
+
+.quick-start-panel .quick-start-head > div:first-child {
+  min-width: 0;
+  overflow-wrap: anywhere;
+}
+
+.quick-start-panel .quick-start-head .inline-actions {
+  flex: 0 1 auto;
+  flex-wrap: wrap;
+}
+
+.quick-start-panel .quick-start-steps li > div {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+}
+
+.quick-start-panel .quick-start-steps li > button {
+  max-width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+}
+
+@media (max-width: 720px) {
+  .quick-start-panel .quick-start-head {
+    align-items: flex-start;
+  }
+
+  .quick-start-panel .quick-start-head .inline-actions {
+    width: 100%;
+    justify-content: flex-start;
+  }
+}
