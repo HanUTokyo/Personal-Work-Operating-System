@@ -1497,6 +1497,9 @@ p {
   line-height: 1.35;
 }
 
+.knowledge-group-toggle { flex: 0 0 30px; width: 30px; min-height: 30px; border: 1px solid var(--line); color: var(--muted); background: var(--surface); }
+.knowledge-group-toggle:hover { color: var(--primary-strong); border-color: var(--primary); }
+
 .knowledge-group-head span {
   color: var(--muted);
   font-size: 13px;

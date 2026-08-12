@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, BookOpen, Check, Download, Edit3, Plus, Share2, X } from "lucide-react";
+import { ArrowLeft, BookOpen, Check, ChevronDown, ChevronRight, Download, Edit3, Plus, Share2, X } from "lucide-react";
 import { api } from "../../api";
 import { dictionaries, noteTypeLabel, priorityLabel } from "../../i18n";
 import type { Locale, NoteType, Phase, PhaseStatus, Priority, Task } from "../../types";
@@ -38,6 +38,7 @@ export function ProjectDetail({
   const [shareOpen, setShareOpen] = useState(false);
   const [exportingAiJson, setExportingAiJson] = useState(false);
   const [changingPhaseKey, setChangingPhaseKey] = useState<string | null>(null);
+  const [collapsedKnowledgeTypes, setCollapsedKnowledgeTypes] = useState<Set<NoteType>>(() => new Set());
 
   useEffect(() => {
     setPhaseDraft(null);
@@ -47,6 +48,7 @@ export function ProjectDetail({
     setKnowledgeDraft(null);
     setShareOpen(false);
     setExportingAiJson(false);
+    setCollapsedKnowledgeTypes(new Set());
   }, [task?.id]);
 
   if (!task) {
@@ -318,12 +320,16 @@ export function ProjectDetail({
               .filter((note) => note.noteType === type && note.noteContent.trim())
               .sort((a, b) => new Date(b.updatedAt || b.createdAt || 0).getTime() - new Date(a.updatedAt || a.createdAt || 0).getTime());
             const count = notes.length + (legacyText ? 1 : 0);
+            const collapsed = collapsedKnowledgeTypes.has(type);
             return (
               <section className="knowledge-group" key={type}>
                 <header className="knowledge-group-head">
-                  <h4>{noteTypeLabel(type, locale)}</h4>
+                  <h4>{noteTypeLabel(type, locale)} <span>{count}</span></h4>
+                  <button className="icon-only knowledge-group-toggle" type="button" onClick={() => setCollapsedKnowledgeTypes((current) => { const next = new Set(current); if (next.has(type)) next.delete(type); else next.add(type); return next; })} title={collapsed ? t.expand : t.collapse} aria-label={collapsed ? t.expand : t.collapse} aria-expanded={!collapsed}>
+                    {collapsed ? <ChevronRight size={17} /> : <ChevronDown size={17} />}
+                  </button>
                 </header>
-                {count ? (
+                {!collapsed && (count ? (
                   <div className="knowledge-grid">
                     {legacyText && fieldItem && (
                       <KnowledgeBlock
@@ -353,7 +359,7 @@ export function ProjectDetail({
                   </div>
                 ) : (
                   <p className="empty-copy">{t.emptyKnowledge}</p>
-                )}
+                ))}
               </section>
             );
           })}
