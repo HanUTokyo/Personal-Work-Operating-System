@@ -416,7 +416,7 @@ const en: Dictionary = {
   expand: "Expand",
   review: "Review",
   learnAi: "How to use AI",
-  aiGuideTitle: "Work with external AI",
+  aiGuideTitle: "Analyze your work with an external AI",
   aiGuideSuggestions: "AI suggestions are a manual place to retain principles, risk signals, and working strategies from AI conversations or reviews.",
   aiGuideGoal: "A current action goal records the one thing most worth advancing now; it is not a to-do list.",
   aiGuideExport: "Export all-project JSON, then choose what to paste into ChatGPT or another external AI for analysis.",

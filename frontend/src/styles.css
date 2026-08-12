@@ -2384,7 +2384,13 @@ label,
     flex-direction: row;
     align-items: flex-start;
     justify-content: space-between;
+    padding-top: 10px;
+    padding-bottom: 10px;
   }
+
+  .editor-panel.ai-usage-guide .editor-head .eyebrow { margin-bottom: 3px; }
+
+  .editor-panel.ai-usage-guide .editor-head h2 { margin-bottom: 0; font-size: 19px; line-height: 1.25; }
 
   .editor-panel.ai-usage-guide .editor-head .icon-only {
     flex: 0 0 38px;
