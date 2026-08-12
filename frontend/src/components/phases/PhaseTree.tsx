@@ -1,4 +1,5 @@
 import { ChevronDown, ChevronUp, CornerDownRight, Edit3, Plus, Trash2 } from "lucide-react";
+import { useState } from "react";
 import { dictionaries, statusLabel } from "../../i18n";
 import type { Locale, Phase, PhaseNode, PhaseStatus } from "../../types";
 import { buildPhaseTree } from "../../utils";
@@ -74,16 +75,15 @@ function PhaseNodeView({
   changingPhaseKey?: string | null;
 }) {
   const t = dictionaries[locale];
+  const [statusMenuOpen, setStatusMenuOpen] = useState(false);
+  const statusOptions = ["TODO", "DOING", "DONE"] as PhaseStatus[];
   return (
     <div className="phase-node">
       <div className="phase-card">
         <div className="phase-card-head">
           <div className="phase-title-status">
             <span>{node.phase.phaseName}</span>
-            <StatusPill status={node.phase.phaseStatus} locale={locale} />
-            {editable && <select className="phase-status-select" value={node.phase.phaseStatus} disabled={changingPhaseKey === node.phase.phaseKey} onChange={(event) => void onStatusChange?.(node.phase.phaseKey, event.target.value as PhaseStatus)} aria-label={`${node.phase.phaseName} ${t.phaseStatus}`}>
-              {(["TODO", "DOING", "DONE"] as PhaseStatus[]).map((status) => <option key={status} value={status}>{statusLabel(status, locale)}</option>)}
-            </select>}
+            {editable ? <div className="phase-status-menu"><button className={`status status-${node.phase.phaseStatus.toLowerCase()} phase-status-trigger`} type="button" disabled={changingPhaseKey === node.phase.phaseKey} onClick={() => setStatusMenuOpen((open) => !open)} aria-label={`${node.phase.phaseName} ${t.phaseStatus}`} aria-expanded={statusMenuOpen}>{statusLabel(node.phase.phaseStatus, locale)}<ChevronDown size={13} /></button>{statusMenuOpen && <div className="phase-status-options" role="menu">{statusOptions.map((status) => <button key={status} className={`status status-${status.toLowerCase()}`} type="button" role="menuitem" onClick={() => { setStatusMenuOpen(false); void onStatusChange?.(node.phase.phaseKey, status); }}>{statusLabel(status, locale)}</button>)}</div>}</div> : <StatusPill status={node.phase.phaseStatus} locale={locale} />}
           </div>
           {editable && (
             <div className="phase-card-actions">

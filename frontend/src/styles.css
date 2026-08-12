@@ -1388,8 +1388,12 @@ p {
 
 .phase-title-status { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; min-width: 0; }
 .phase-title-status .status { margin-left: 0; }
-.phase-status-select { min-height: 28px; border: 1px solid var(--line); border-radius: 8px; padding: 3px 24px 3px 8px; color: var(--text); background: var(--surface); font-size: 12px; }
-.phase-status-select:disabled { opacity: .65; cursor: wait; }
+.phase-status-menu { position: relative; }
+.phase-status-trigger { display: inline-flex; align-items: center; gap: 3px; border: 1px solid currentColor; border-radius: 999px; padding: 3px 8px; background: color-mix(in srgb, currentColor 8%, var(--surface)); cursor: pointer; }
+.phase-status-trigger:disabled { opacity: .65; cursor: wait; }
+.phase-status-options { position: absolute; z-index: 20; top: calc(100% + 5px); left: 0; display: grid; gap: 4px; min-width: max-content; padding: 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--surface); box-shadow: var(--shadow-soft); }
+.phase-status-options .status { justify-content: flex-start; width: 100%; margin: 0; border: 1px solid transparent; border-radius: 7px; padding: 5px 8px; background: transparent; text-align: left; cursor: pointer; }
+.phase-status-options .status:hover { border-color: currentColor; background: color-mix(in srgb, currentColor 10%, var(--surface)); }
 
 .phase-card p {
   margin: 8px 0 0;
