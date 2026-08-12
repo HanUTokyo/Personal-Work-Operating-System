@@ -1192,11 +1192,31 @@ p {
 }
 
 .rich-text ol { list-style-type: decimal; }
-.rich-text ol > li { display: list-item; }
 
 .rich-text li {
   margin: 2px 0;
 }
+
+.project-page-shell,
+.detail-panel,
+.project-detail-page,
+.detail-section,
+.phase-tree,
+.phase-node,
+.phase-card,
+.knowledge-group,
+.knowledge-block,
+.rich-text { min-width: 0; max-width: 100%; }
+
+.rich-text,
+.rich-text li,
+.rich-text p,
+.rich-text h1,
+.rich-text h2,
+.rich-text h3,
+.rich-text h4,
+.rich-text h5,
+.rich-text h6 { overflow-wrap: anywhere; word-break: break-word; }
 
 .rich-text .task-list {
   padding-left: 0;
@@ -2067,6 +2087,10 @@ label,
 }
 
 @media (max-width: 720px) {
+  .project-page-shell,
+  .project-detail-page,
+  .detail-panel { width: 100%; max-width: 100vw; overflow-x: hidden; }
+
   .rich-editor-toolbar {
     flex-wrap: wrap;
     align-items: flex-start;
