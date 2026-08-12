@@ -31,9 +31,10 @@
 .quick-start-steps li.done svg { color: var(--ok); }
 .quick-start-steps strong { display: block; }
 .quick-start-steps p { margin: 3px 0 0; color: var(--muted); font-size: .88rem; line-height: 1.45; }
-.ai-usage-guide { max-width: 720px; }
+.ai-usage-guide { max-width: 720px; background: var(--surface); }
 .ai-usage-guide,
 .ai-usage-guide * { min-width: 0; }
+.ai-usage-guide .editor-body { background: var(--surface); }
 .ai-usage-guide .editor-body > p { line-height: 1.55; }
 .ai-usage-guide .editor-head > div { min-width: 0; }
 .ai-usage-guide .editor-head h2,
