@@ -1,6 +1,6 @@
 import { ChevronDown, ChevronUp, CornerDownRight, Edit3, Plus, Trash2 } from "lucide-react";
-import { dictionaries } from "../../i18n";
-import type { Locale, Phase, PhaseNode } from "../../types";
+import { dictionaries, statusLabel } from "../../i18n";
+import type { Locale, Phase, PhaseNode, PhaseStatus } from "../../types";
 import { buildPhaseTree } from "../../utils";
 import { RichTextView } from "../ui/RichText";
 import { StatusPill } from "../ui/Pills";
@@ -13,7 +13,9 @@ export function PhaseTree({
   onAddNext,
   onAddChild,
   onDelete,
-  onMove
+  onMove,
+  onStatusChange,
+  changingPhaseKey
 }: {
   phases: Phase[];
   locale: Locale;
@@ -23,6 +25,8 @@ export function PhaseTree({
   onAddChild?: (phaseKey: string) => void | Promise<void>;
   onDelete?: (phaseKey: string) => void | Promise<void>;
   onMove?: (phaseKey: string, direction: -1 | 1) => void | Promise<void>;
+  onStatusChange?: (phaseKey: string, status: PhaseStatus) => void | Promise<void>;
+  changingPhaseKey?: string | null;
 }) {
   const roots = buildPhaseTree(phases);
   return (
@@ -38,6 +42,8 @@ export function PhaseTree({
           onAddChild={onAddChild}
           onDelete={onDelete}
           onMove={onMove}
+          onStatusChange={onStatusChange}
+          changingPhaseKey={changingPhaseKey}
         />
       ))}
     </div>
@@ -52,7 +58,9 @@ function PhaseNodeView({
   onAddNext,
   onAddChild,
   onDelete,
-  onMove
+  onMove,
+  onStatusChange,
+  changingPhaseKey
 }: {
   node: PhaseNode;
   locale: Locale;
@@ -62,15 +70,20 @@ function PhaseNodeView({
   onAddChild?: (phaseKey: string) => void | Promise<void>;
   onDelete?: (phaseKey: string) => void | Promise<void>;
   onMove?: (phaseKey: string, direction: -1 | 1) => void | Promise<void>;
+  onStatusChange?: (phaseKey: string, status: PhaseStatus) => void | Promise<void>;
+  changingPhaseKey?: string | null;
 }) {
   const t = dictionaries[locale];
   return (
     <div className="phase-node">
       <div className="phase-card">
         <div className="phase-card-head">
-          <div>
+          <div className="phase-title-status">
             <span>{node.phase.phaseName}</span>
             <StatusPill status={node.phase.phaseStatus} locale={locale} />
+            {editable && <select className="phase-status-select" value={node.phase.phaseStatus} disabled={changingPhaseKey === node.phase.phaseKey} onChange={(event) => void onStatusChange?.(node.phase.phaseKey, event.target.value as PhaseStatus)} aria-label={`${node.phase.phaseName} ${t.phaseStatus}`}>
+              {(["TODO", "DOING", "DONE"] as PhaseStatus[]).map((status) => <option key={status} value={status}>{statusLabel(status, locale)}</option>)}
+            </select>}
           </div>
           {editable && (
             <div className="phase-card-actions">
@@ -102,6 +115,8 @@ function PhaseNodeView({
               onAddChild={onAddChild}
               onDelete={onDelete}
               onMove={onMove}
+              onStatusChange={onStatusChange}
+              changingPhaseKey={changingPhaseKey}
             />
           ))}
         </div>

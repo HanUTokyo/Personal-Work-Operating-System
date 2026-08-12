@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { ArrowLeft, BookOpen, Check, Download, Edit3, Plus, Share2, X } from "lucide-react";
 import { api } from "../../api";
 import { dictionaries, noteTypeLabel, priorityLabel } from "../../i18n";
-import type { Locale, NoteType, Phase, Priority, Task } from "../../types";
+import type { Locale, NoteType, Phase, PhaseStatus, Priority, Task } from "../../types";
 import { canEdit, canManageShares, ensurePhases, formatDate, formatProgress, movePhase, toTaskPayload } from "../../utils";
 import { KnowledgeBlock } from "../../components/knowledge/KnowledgeBlock";
 import { KnowledgeEditModal } from "../../components/knowledge/KnowledgeEditModal";
@@ -37,6 +37,7 @@ export function ProjectDetail({
   const [knowledgeDraft, setKnowledgeDraft] = useState<KnowledgeDraft | null>(null);
   const [shareOpen, setShareOpen] = useState(false);
   const [exportingAiJson, setExportingAiJson] = useState(false);
+  const [changingPhaseKey, setChangingPhaseKey] = useState<string | null>(null);
 
   useEffect(() => {
     setPhaseDraft(null);
@@ -104,6 +105,18 @@ export function ProjectDetail({
   async function moveDetailPhase(phaseKey: string, direction: -1 | 1) {
     if (!task || !canEdit(task)) return;
     await savePhases(movePhase(ensurePhases(task), phaseKey, direction));
+  }
+
+  async function changePhaseStatus(phaseKey: string, phaseStatus: PhaseStatus) {
+    if (!task || !canEdit(task)) return;
+    const phase = ensurePhases(task).find((item) => item.phaseKey === phaseKey);
+    if (!phase || phase.phaseStatus === phaseStatus) return;
+    setChangingPhaseKey(phaseKey);
+    try {
+      await savePhases(ensurePhases(task).map((item) => item.phaseKey === phaseKey ? { ...item, phaseStatus } : item));
+    } finally {
+      setChangingPhaseKey(null);
+    }
   }
 
   async function saveKnowledgeField(field: KnowledgeField, value: string) {
@@ -286,6 +299,8 @@ export function ProjectDetail({
           onAddChild={addChildPhase}
           onDelete={deletePhase}
           onMove={moveDetailPhase}
+          onStatusChange={changePhaseStatus}
+          changingPhaseKey={changingPhaseKey}
         />
       </section>
       <section className="detail-section">
