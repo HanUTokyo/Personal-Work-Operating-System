@@ -470,6 +470,19 @@ p {
   margin-bottom: 0;
 }
 
+/* Keep delete controls visibly dangerous in both global AI panels. */
+.ai-suggestions-panel .ai-suggestion-card .danger-subtle {
+  border-color: color-mix(in srgb, var(--danger) 34%, var(--line));
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger-soft) 70%, var(--surface));
+}
+
+.ai-suggestions-panel .ai-suggestion-card .danger-subtle:hover:not(:disabled) {
+  border-color: var(--danger);
+  color: var(--danger);
+  background: color-mix(in srgb, var(--danger-soft) 88%, var(--surface));
+}
+
 .personal-task-panel {
   min-width: 0;
 }
