@@ -32,16 +32,31 @@
 .quick-start-steps strong { display: block; }
 .quick-start-steps p { margin: 3px 0 0; color: var(--muted); font-size: .88rem; line-height: 1.45; }
 .ai-usage-guide { max-width: 720px; }
+.ai-usage-guide,
+.ai-usage-guide * { min-width: 0; }
 .ai-usage-guide .editor-body > p { line-height: 1.55; }
+.ai-usage-guide .editor-head > div { min-width: 0; }
+.ai-usage-guide .editor-head h2,
+.ai-usage-guide .editor-body p,
+.ai-usage-guide .prompt-list strong { overflow-wrap: anywhere; word-break: break-word; }
 .privacy-copy { padding: 10px 12px; border-radius: 10px; background: var(--surface-soft); color: var(--muted); font-size: .9rem; }
 .prompt-list { display: grid; gap: 10px; margin-top: 16px; }
 .prompt-list article { padding: 12px; border: 1px solid var(--line); border-radius: 12px; }
 .prompt-list p { margin: 6px 0 10px; color: var(--muted); line-height: 1.45; font-size: .9rem; }
+.ai-usage-guide .editor-footer button { white-space: normal; overflow-wrap: anywhere; }
 
 @media (max-width: 640px) {
   .quick-start-steps li { grid-template-columns: 22px minmax(0, 1fr); }
   .quick-start-steps li > button { grid-column: 2; justify-self: start; }
   .quick-start-head { align-items: flex-start; }
+
+  .ai-usage-guide .editor-head,
+  .ai-usage-guide .editor-body,
+  .ai-usage-guide .editor-footer { padding-left: 12px; padding-right: 12px; }
+
+  .ai-usage-guide .editor-footer { grid-template-columns: minmax(0, 1fr); }
+
+  .ai-usage-guide .prompt-list article { padding: 10px; }
 }
 
 :root[data-theme="dark"] {
