@@ -1191,6 +1191,9 @@ p {
   padding-left: 20px;
 }
 
+.rich-text ol { list-style-type: decimal; }
+.rich-text ol > li { display: list-item; }
+
 .rich-text li {
   margin: 2px 0;
 }

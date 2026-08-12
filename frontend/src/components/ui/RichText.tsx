@@ -206,11 +206,12 @@ export function renderRichText(text: string) {
 
     if (/^\d+[.)]\s+/.test(trimmed)) {
       const items: string[] = [];
+      const start = Number(/^\d+/.exec(trimmed)?.[0] || 1);
       while (index < lines.length && /^\d+[.)]\s+/.test(lines[index].trim())) {
         items.push(`<li>${formatInline(lines[index].trim().replace(/^\d+[.)]\s+/, ""))}</li>`);
         index += 1;
       }
-      blocks.push(`<ol>${items.join("")}</ol>`);
+      blocks.push(`<ol start="${start}">${items.join("")}</ol>`);
       continue;
     }
 
