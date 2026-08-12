@@ -2368,3 +2368,25 @@ label,
   .quick-start-panel .quick-start-head,
   .quick-start-panel .quick-start-steps li { padding-left: 12px; padding-right: 12px; }
 }
+
+/* Keep this instructional modal above a translucent app surface. These rules must follow the shared editor rules. */
+.editor-panel.ai-usage-guide,
+.editor-panel.ai-usage-guide .editor-body {
+  background: var(--surface);
+}
+
+@media (max-width: 720px) {
+  .editor-panel.ai-usage-guide .editor-head {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+  }
+
+  .editor-panel.ai-usage-guide .editor-head .icon-only {
+    flex: 0 0 38px;
+    width: 38px;
+    min-height: 38px;
+    padding: 0;
+  }
+}
