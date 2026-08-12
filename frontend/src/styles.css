@@ -54,6 +54,28 @@
   .ai-usage-guide .editor-body,
   .ai-usage-guide .editor-footer { padding-left: 12px; padding-right: 12px; }
 
+  /* Override the general mobile stacked editor header: the close control stays a compact icon. */
+  .ai-usage-guide .editor-head {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
+  }
+
+  .ai-usage-guide .editor-head .icon-only {
+    flex: 0 0 38px;
+    width: 38px;
+    min-height: 38px;
+    padding: 0;
+  }
+
+  .ai-usage-guide .editor-body {
+    overflow-x: hidden;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+  }
+
   .ai-usage-guide .editor-footer { grid-template-columns: minmax(0, 1fr); }
 
   .ai-usage-guide .prompt-list article { padding: 10px; }
