@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS tasks (
     overall_progress REAL NOT NULL,
     created_at DATETIME NOT NULL,
     updated_at DATETIME NOT NULL,
+    revision INTEGER NOT NULL DEFAULT 1,
     is_deleted INTEGER NOT NULL DEFAULT 0,
     deleted_at DATETIME,
     is_archived INTEGER NOT NULL DEFAULT 0,
@@ -36,6 +37,19 @@ CREATE TABLE IF NOT EXISTS tasks (
     is_demo INTEGER NOT NULL DEFAULT 0,
     CONSTRAINT fk_tasks_owner FOREIGN KEY(owner_user_id) REFERENCES users(id)
 );
+
+CREATE TABLE IF NOT EXISTS task_versions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id INTEGER NOT NULL,
+    revision INTEGER NOT NULL,
+    snapshot_json TEXT NOT NULL,
+    change_reason TEXT NOT NULL,
+    changed_by_user_id INTEGER NOT NULL,
+    created_at DATETIME NOT NULL,
+    CONSTRAINT fk_task_versions_task FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+    CONSTRAINT fk_task_versions_user FOREIGN KEY(changed_by_user_id) REFERENCES users(id)
+);
+CREATE INDEX IF NOT EXISTS idx_task_versions_task ON task_versions(task_id, id DESC);
 
 CREATE TABLE IF NOT EXISTS task_phases (
     id INTEGER PRIMARY KEY AUTOINCREMENT,

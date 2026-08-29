@@ -75,6 +75,7 @@ export interface Task {
   overallProgress: number;
   createdAt?: string;
   updatedAt?: string;
+  revision?: number;
 }
 
 export interface TaskPayload {
@@ -85,6 +86,15 @@ export interface TaskPayload {
   knowledgeHighlights?: string;
   priority: Priority;
   phases: Phase[];
+  expectedRevision?: number;
+}
+
+export interface TaskVersion {
+  id: number;
+  revision: number;
+  changeReason: string;
+  changedBy: string;
+  createdAt: string;
 }
 
 export interface TaskShare {

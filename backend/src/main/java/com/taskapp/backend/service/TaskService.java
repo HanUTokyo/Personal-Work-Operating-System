@@ -10,10 +10,12 @@ import com.taskapp.backend.dto.TaskResponse;
 import com.taskapp.backend.dto.TaskShareRequest;
 import com.taskapp.backend.dto.TaskShareResponse;
 import com.taskapp.backend.dto.TaskUpdateRequest;
+import com.taskapp.backend.dto.TaskVersionResponse;
 import com.taskapp.backend.dto.UserResponse;
 import com.taskapp.backend.exception.AuthorizationException;
 import com.taskapp.backend.exception.TaskNoteNotFoundException;
 import com.taskapp.backend.exception.TaskNotFoundException;
+import com.taskapp.backend.exception.TaskConflictException;
 import com.taskapp.backend.exception.UserNotFoundException;
 import com.taskapp.backend.model.AppUser;
 import com.taskapp.backend.model.PhaseStatus;
@@ -30,8 +32,13 @@ import com.taskapp.backend.repository.TaskPhaseRepository;
 import com.taskapp.backend.repository.TaskPinRepository;
 import com.taskapp.backend.repository.TaskRepository;
 import com.taskapp.backend.repository.TaskShareRepository;
+import com.taskapp.backend.repository.TaskVersionRepository;
 import com.taskapp.backend.repository.UserRepository;
+import com.taskapp.backend.model.TaskVersion;
+import com.fasterxml.jackson.core.JsonProcessingException;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -57,6 +64,8 @@ public class TaskService {
     private final TaskPinRepository taskPinRepository;
     private final UserRepository userRepository;
     private final AuthService authService;
+    private final TaskVersionRepository taskVersionRepository;
+    private final ObjectMapper objectMapper;
 
     public TaskService(
             TaskRepository taskRepository,
@@ -66,7 +75,9 @@ public class TaskService {
             TaskShareRepository taskShareRepository,
             TaskPinRepository taskPinRepository,
             UserRepository userRepository,
-            AuthService authService
+            AuthService authService,
+            TaskVersionRepository taskVersionRepository,
+            ObjectMapper objectMapper
     ) {
         this.taskRepository = taskRepository;
         this.taskPhaseRepository = taskPhaseRepository;
@@ -76,6 +87,8 @@ public class TaskService {
         this.taskPinRepository = taskPinRepository;
         this.userRepository = userRepository;
         this.authService = authService;
+        this.taskVersionRepository = taskVersionRepository;
+        this.objectMapper = objectMapper;
     }
 
     public List<TaskResponse> getAllTasks(String authorizationHeader, String keyword, String sortBy, String order, boolean archived) {
@@ -138,6 +151,7 @@ public class TaskService {
         task.setOverallProgress(calculateOverallProgress(normalizedPhases));
         task.setCreatedAt(now);
         task.setUpdatedAt(now);
+        task.setRevision(1);
 
         Task savedTask = taskRepository.save(task);
         taskPhaseRepository.insertAll(savedTask.getId(), normalizedPhases, now);
@@ -155,11 +169,16 @@ public class TaskService {
         return toResponse(savedTask, savedPhases, knowledge, notes, currentUser, currentUser);
     }
 
+    @Transactional
     public TaskResponse updateTask(String authorizationHeader, Long id, TaskUpdateRequest request) {
         AppUser currentUser = authService.requireUser(authorizationHeader);
         Task existingTask = taskRepository.findById(id)
                 .orElseThrow(() -> new TaskNotFoundException(id));
         requireCanEdit(currentUser, existingTask);
+        if (request.getExpectedRevision() == null || request.getExpectedRevision() != existingTask.getRevision()) {
+            throw new TaskConflictException();
+        }
+        snapshot(existingTask, currentUser, "project update");
 
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
         List<TaskPhase> normalizedPhases = normalizePhases(request.getPhases());
@@ -171,7 +190,10 @@ public class TaskService {
         existingTask.setOverallProgress(calculateOverallProgress(normalizedPhases));
         existingTask.setUpdatedAt(now);
 
-        Task updatedTask = taskRepository.update(existingTask);
+        if (!taskRepository.update(existingTask, request.getExpectedRevision())) {
+            throw new TaskConflictException();
+        }
+        Task updatedTask = existingTask;
         taskRepository.setDemo(id, false);
         updatedTask.setDemo(false);
         taskPhaseRepository.replaceAll(id, normalizedPhases, now);
@@ -188,6 +210,39 @@ public class TaskService {
         List<TaskNote> notes = taskNoteRepository.findByTaskId(id);
         AppUser owner = userRepository.findById(updatedTask.getOwnerUserId()).orElse(null);
         return toResponse(updatedTask, savedPhases, knowledge, notes, currentUser, owner);
+    }
+
+    public List<TaskVersionResponse> getTaskVersions(String authorizationHeader, Long id) {
+        AppUser currentUser = authService.requireUser(authorizationHeader);
+        Task task = taskRepository.findById(id).orElseThrow(() -> new TaskNotFoundException(id));
+        requireCanView(currentUser, task);
+        return taskVersionRepository.findByTaskId(id).stream().map(this::toVersionResponse).toList();
+    }
+
+    @Transactional
+    public TaskResponse restoreTaskVersion(String authorizationHeader, Long id, Long versionId) {
+        AppUser currentUser = authService.requireUser(authorizationHeader);
+        Task task = taskRepository.findById(id).orElseThrow(() -> new TaskNotFoundException(id));
+        requireCanEdit(currentUser, task);
+        TaskVersion version = taskVersionRepository.findByIdAndTaskId(versionId, id).orElseThrow(() -> new IllegalArgumentException("Version not found"));
+        try {
+            TaskResponse snapshot = objectMapper.readValue(version.getSnapshotJson(), TaskResponse.class);
+            snapshot(task, currentUser, "before restore");
+            task.setTaskTitle(snapshot.getTaskTitle()); task.setTaskDescription(snapshot.getTaskDescription());
+            task.setPriority(ProjectPriority.valueOf(snapshot.getPriority()));
+            List<TaskPhase> phases = snapshot.getPhases().stream().map(this::fromPhaseResponse).toList();
+            applyLegacyPhaseColumns(task, phases); task.setOverallProgress(calculateOverallProgress(phases));
+            task.setUpdatedAt(LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
+            if (!taskRepository.update(task, task.getRevision())) throw new TaskConflictException();
+            taskPhaseRepository.replaceAll(id, phases, task.getUpdatedAt());
+            taskKnowledgeRepository.upsert(id, snapshot.getRecentDecisions(), snapshot.getRecentExperiments(), snapshot.getKnowledgeHighlights(), task.getUpdatedAt());
+            taskNoteRepository.replaceAll(id, snapshot.getNotes(), task.getUpdatedAt());
+            List<TaskPhase> restoredPhases = taskPhaseRepository.findByTaskId(id);
+            TaskKnowledge knowledge = taskKnowledgeRepository.findByTaskId(id).orElse(null);
+            return toResponse(task, restoredPhases, knowledge, taskNoteRepository.findByTaskId(id), currentUser, userRepository.findById(task.getOwnerUserId()).orElse(null));
+        } catch (JsonProcessingException ex) {
+            throw new IllegalArgumentException("Version data could not be restored");
+        }
     }
 
     public void deleteTask(String authorizationHeader, Long id) {
@@ -221,6 +276,7 @@ public class TaskService {
         Task existingTask = taskRepository.findById(taskId)
                 .orElseThrow(() -> new TaskNotFoundException(taskId));
         requireCanEdit(currentUser, existingTask);
+        snapshot(existingTask, currentUser, "knowledge item created");
         taskRepository.setDemo(taskId, false);
 
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
@@ -238,6 +294,7 @@ public class TaskService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new TaskNotFoundException(taskId));
         requireCanEdit(currentUser, task);
+        snapshot(task, currentUser, "knowledge item updated");
         taskRepository.setDemo(taskId, false);
 
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
@@ -259,6 +316,7 @@ public class TaskService {
         Task task = taskRepository.findById(taskId)
                 .orElseThrow(() -> new TaskNotFoundException(taskId));
         requireCanEdit(currentUser, task);
+        snapshot(task, currentUser, "knowledge item deleted");
         taskRepository.setDemo(taskId, false);
 
         LocalDateTime now = LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS);
@@ -503,7 +561,32 @@ public class TaskService {
         response.setOverallProgress(task.getOverallProgress());
         response.setCreatedAt(task.getCreatedAt());
         response.setUpdatedAt(task.getUpdatedAt());
+        response.setRevision(task.getRevision());
         return response;
+    }
+
+    private void snapshot(Task task, AppUser changedBy, String reason) {
+        try {
+            AppUser owner = userRepository.findById(task.getOwnerUserId()).orElse(null);
+            TaskResponse current = toResponse(task, taskPhaseRepository.findByTaskId(task.getId()), taskKnowledgeRepository.findByTaskId(task.getId()).orElse(null), taskNoteRepository.findByTaskId(task.getId()), changedBy, owner);
+            taskVersionRepository.save(task.getId(), task.getRevision(), objectMapper.writeValueAsString(current), reason, changedBy.getId(), LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
+        } catch (JsonProcessingException ex) {
+            throw new IllegalStateException("Could not create a safety snapshot", ex);
+        }
+    }
+
+    private TaskVersionResponse toVersionResponse(TaskVersion version) {
+        TaskVersionResponse response = new TaskVersionResponse();
+        response.setId(version.getId()); response.setRevision(version.getRevision()); response.setChangeReason(version.getChangeReason());
+        response.setChangedBy(version.getChangedByUsername()); response.setCreatedAt(version.getCreatedAt());
+        return response;
+    }
+
+    private TaskPhase fromPhaseResponse(PhaseResponse response) {
+        TaskPhase phase = new TaskPhase();
+        phase.setPhaseKey(response.getPhaseKey()); phase.setParentPhaseKey(response.getParentPhaseKey()); phase.setPhaseName(response.getPhaseName());
+        phase.setPhaseDescription(response.getPhaseDescription()); phase.setPhaseStatus(response.getPhaseStatus()); phase.setSortOrder(response.getSortOrder());
+        return phase;
     }
 
     private List<TaskShareResponse> buildShareResponses(List<TaskShare> shares) {

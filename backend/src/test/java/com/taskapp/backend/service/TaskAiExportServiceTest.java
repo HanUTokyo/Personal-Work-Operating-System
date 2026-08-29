@@ -23,7 +23,9 @@ import com.taskapp.backend.repository.TaskPhaseRepository;
 import com.taskapp.backend.repository.TaskPinRepository;
 import com.taskapp.backend.repository.TaskRepository;
 import com.taskapp.backend.repository.TaskShareRepository;
+import com.taskapp.backend.repository.TaskVersionRepository;
 import com.taskapp.backend.repository.UserRepository;
+import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.params.ParameterizedTest;
@@ -65,6 +67,8 @@ class TaskAiExportServiceTest {
     @Mock
     private AuthService authService;
     @Mock
+    private TaskVersionRepository taskVersionRepository;
+    @Mock
     private PersonalTaskService personalTaskService;
     @Mock
     private GlobalAiSuggestionService globalAiSuggestionService;
@@ -83,7 +87,9 @@ class TaskAiExportServiceTest {
                 taskShareRepository,
                 taskPinRepository,
                 userRepository,
-                authService
+                authService,
+                taskVersionRepository,
+                new ObjectMapper()
         );
         exportService = new TaskAiExportService(taskService, personalTaskService, globalAiSuggestionService, flashNoteService);
     }

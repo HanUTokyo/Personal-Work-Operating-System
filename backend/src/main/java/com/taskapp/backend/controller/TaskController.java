@@ -11,6 +11,7 @@ import com.taskapp.backend.dto.TaskResponse;
 import com.taskapp.backend.dto.TaskShareRequest;
 import com.taskapp.backend.dto.TaskShareResponse;
 import com.taskapp.backend.dto.TaskUpdateRequest;
+import com.taskapp.backend.dto.TaskVersionResponse;
 import com.taskapp.backend.service.TaskService;
 import com.taskapp.backend.service.TaskAiExportService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -110,6 +111,23 @@ public class TaskController {
     ) {
         TaskResponse updatedTask = taskService.updateTask(authorizationHeader, id, request);
         return ResponseEntity.ok(ApiResponse.success("Task updated successfully", updatedTask));
+    }
+
+    @GetMapping("/{id}/versions")
+    public ResponseEntity<ApiResponse<List<TaskVersionResponse>>> getTaskVersions(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(ApiResponse.success("Project versions fetched", taskService.getTaskVersions(authorizationHeader, id)));
+    }
+
+    @PostMapping("/{id}/versions/{versionId}/restore")
+    public ResponseEntity<ApiResponse<TaskResponse>> restoreTaskVersion(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+            @PathVariable Long id,
+            @PathVariable Long versionId
+    ) {
+        return ResponseEntity.ok(ApiResponse.success("Project version restored", taskService.restoreTaskVersion(authorizationHeader, id, versionId)));
     }
 
     @DeleteMapping("/{id}")

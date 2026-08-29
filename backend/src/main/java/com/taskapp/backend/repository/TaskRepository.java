@@ -44,6 +44,7 @@ public class TaskRepository {
         task.setDemo(rs.getInt("is_demo") != 0);
         task.setCreatedAt(parseDateTime(rs.getString("created_at")));
         task.setUpdatedAt(parseDateTime(rs.getString("updated_at")));
+        task.setRevision(rs.getLong("revision"));
         return task;
     };
 
@@ -59,7 +60,7 @@ public class TaskRepository {
         StringBuilder sql = new StringBuilder("""
                 SELECT DISTINCT tasks.id, tasks.task_title, tasks.task_description, tasks.owner_user_id,
                        tasks.phase1_status, tasks.phase2_status, tasks.phase3_status,
-                       tasks.priority, tasks.overall_progress, tasks.created_at, tasks.updated_at, tasks.is_archived, tasks.archived_at, tasks.is_demo,
+                       tasks.priority, tasks.overall_progress, tasks.created_at, tasks.updated_at, tasks.revision, tasks.is_archived, tasks.archived_at, tasks.is_demo,
                        CASE WHEN task_pins.task_id IS NULL THEN 0 ELSE 1 END AS pinned
                 FROM tasks
                 LEFT JOIN task_shares ON task_shares.task_id = tasks.id
@@ -87,7 +88,7 @@ public class TaskRepository {
     public Optional<Task> findById(Long id) {
         String sql = """
                 SELECT id, task_title, task_description, owner_user_id, phase1_status, phase2_status, phase3_status,
-                       priority, overall_progress, created_at, updated_at, 0 AS pinned, is_archived, archived_at, is_demo
+                       priority, overall_progress, created_at, updated_at, revision, 0 AS pinned, is_archived, archived_at, is_demo
                 FROM tasks
                 WHERE id = ?
                   AND is_deleted = 0
@@ -126,7 +127,7 @@ public class TaskRepository {
         return task;
     }
 
-    public Task update(Task task) {
+    public boolean update(Task task, long expectedRevision) {
         String sql = """
                 UPDATE tasks
                 SET task_title = ?,
@@ -136,11 +137,12 @@ public class TaskRepository {
                     phase3_status = ?,
                     priority = ?,
                     overall_progress = ?,
-                    updated_at = ?
-                WHERE id = ?
+                    updated_at = ?,
+                    revision = revision + 1
+                WHERE id = ? AND revision = ?
                 """;
 
-        jdbcTemplate.update(
+        int affectedRows = jdbcTemplate.update(
                 sql,
                 task.getTaskTitle(),
                 task.getTaskDescription(),
@@ -150,10 +152,11 @@ public class TaskRepository {
                 task.getPriority().name(),
                 task.getOverallProgress(),
                 formatDateTime(task.getUpdatedAt()),
-                task.getId()
+                task.getId(),
+                expectedRevision
         );
-
-        return task;
+        if (affectedRows > 0) task.setRevision(expectedRevision + 1);
+        return affectedRows > 0;
     }
 
     public boolean deleteById(Long id) {

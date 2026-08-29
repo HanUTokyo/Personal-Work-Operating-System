@@ -26,6 +26,7 @@ public class TaskResponse {
     private double overallProgress;
     private LocalDateTime createdAt;
     private LocalDateTime updatedAt;
+    private long revision;
 
     public Long getId() {
         return id;
@@ -176,4 +177,7 @@ public class TaskResponse {
     public void setUpdatedAt(LocalDateTime updatedAt) {
         this.updatedAt = updatedAt;
     }
+
+    public long getRevision() { return revision; }
+    public void setRevision(long revision) { this.revision = revision; }
 }

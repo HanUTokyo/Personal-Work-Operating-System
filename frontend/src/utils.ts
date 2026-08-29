@@ -141,7 +141,8 @@ export function toTaskPayload(task: Partial<Task>, phases: Phase[]): TaskPayload
     recentExperiments: task.recentExperiments || "",
     knowledgeHighlights: task.knowledgeHighlights || "",
     priority: normalizePriority(task.priority),
-    phases: normalizePhases(phases)
+    phases: normalizePhases(phases),
+    expectedRevision: task.revision
   };
 }
 

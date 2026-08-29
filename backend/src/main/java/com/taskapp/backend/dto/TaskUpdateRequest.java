@@ -31,6 +31,7 @@ public class TaskUpdateRequest {
 
     @Valid
     private List<PhaseRequest> phases = new ArrayList<>();
+    private Long expectedRevision;
 
     public String getTaskTitle() {
         return taskTitle;
@@ -87,4 +88,7 @@ public class TaskUpdateRequest {
     public void setPhases(List<PhaseRequest> phases) {
         this.phases = phases;
     }
+
+    public Long getExpectedRevision() { return expectedRevision; }
+    public void setExpectedRevision(Long expectedRevision) { this.expectedRevision = expectedRevision; }
 }

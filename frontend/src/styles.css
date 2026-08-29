@@ -1193,6 +1193,12 @@ p {
 
 .rich-text ol { list-style-type: decimal; }
 
+.version-history-panel { width: min(620px, calc(100vw - 32px)); max-height: min(72vh, 620px); display: flex; flex-direction: column; gap: 14px; }
+.version-list { overflow: auto; display: grid; gap: 8px; min-width: 0; }
+.version-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
+.version-row p { margin: 4px 0 0; color: var(--muted); font-size: .84rem; overflow-wrap: anywhere; }
+@media (max-width: 720px) { .version-row { align-items: flex-start; flex-direction: column; } .version-row button { width: 100%; } }
+
 .rich-text li {
   margin: 2px 0;
 }

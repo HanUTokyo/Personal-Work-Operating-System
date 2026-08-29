@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, BookOpen, Check, ChevronDown, ChevronRight, Download, Edit3, Plus, Share2, X } from "lucide-react";
+import { ArrowLeft, BookOpen, Check, ChevronDown, ChevronRight, Download, Edit3, History, Plus, Share2, X } from "lucide-react";
 import { api } from "../../api";
 import { dictionaries, noteTypeLabel, priorityLabel } from "../../i18n";
-import type { Locale, NoteType, Phase, PhaseStatus, Priority, Task } from "../../types";
+import type { Locale, NoteType, Phase, PhaseStatus, Priority, Task, TaskVersion } from "../../types";
 import { canEdit, canManageShares, ensurePhases, formatDate, formatProgress, movePhase, toTaskPayload } from "../../utils";
 import { KnowledgeBlock } from "../../components/knowledge/KnowledgeBlock";
 import { KnowledgeEditModal } from "../../components/knowledge/KnowledgeEditModal";
@@ -39,6 +39,9 @@ export function ProjectDetail({
   const [exportingAiJson, setExportingAiJson] = useState(false);
   const [changingPhaseKey, setChangingPhaseKey] = useState<string | null>(null);
   const [collapsedKnowledgeTypes, setCollapsedKnowledgeTypes] = useState<Set<NoteType>>(() => new Set());
+  const [versions, setVersions] = useState<TaskVersion[] | null>(null);
+  const [restoringVersionId, setRestoringVersionId] = useState<number | null>(null);
+  const collaboration = locale === "zh" ? { history: "版本历史", restore: "恢复此版本", close: "关闭", empty: "尚无历史版本", conflict: "此项目已被另一位协作者修改。为避免覆盖对方内容，当前保存没有执行；将重新加载最新版本。", restoreConfirm: "恢复会将项目、阶段和知识恢复到该版本；当前内容会先自动保存为新版本。继续吗？" } : locale === "ja" ? { history: "バージョン履歴", restore: "この版を復元", close: "閉じる", empty: "履歴はまだありません", conflict: "別の共同編集者がこのプロジェクトを変更しました。上書きを防ぐため保存しませんでした。最新の内容を再読み込みします。", restoreConfirm: "プロジェクト、フェーズ、ナレッジをこの版に復元します。現在の内容は先に自動保存されます。続行しますか？" } : { history: "Version history", restore: "Restore this version", close: "Close", empty: "No saved versions yet", conflict: "This project was changed by another collaborator. Your save was not applied, so their work is protected. The latest version will now reload.", restoreConfirm: "This restores the project, phases, and knowledge from this version. The current content is saved as a new version first. Continue?" };
 
   useEffect(() => {
     setPhaseDraft(null);
@@ -49,10 +52,21 @@ export function ProjectDetail({
     setShareOpen(false);
     setExportingAiJson(false);
     setCollapsedKnowledgeTypes(new Set());
+    setVersions(null);
   }, [task?.id]);
 
   if (!task) {
     return <section className="panel detail-panel project-detail-page empty-detail"><BookOpen /><p>{t.selectProject}</p></section>;
+  }
+
+  async function handleSaveError(error: unknown) {
+    const message = error instanceof Error ? error.message : "";
+    if (message.includes("changed by another collaborator")) {
+      window.alert(collaboration.conflict);
+      await onChanged();
+      return;
+    }
+    onError(error);
   }
 
   async function savePhases(nextPhases: Phase[]) {
@@ -61,7 +75,7 @@ export function ProjectDetail({
       await api.updateTask(task.id, toTaskPayload(task, nextPhases));
       await onChanged();
     } catch (error) {
-      onError(error);
+      await handleSaveError(error);
     }
   }
 
@@ -71,7 +85,7 @@ export function ProjectDetail({
       await api.updateTask(task.id, toTaskPayload({ ...task, ...patch }, ensurePhases(task)));
       await onChanged();
     } catch (error) {
-      onError(error);
+      await handleSaveError(error);
     }
   }
 
@@ -128,7 +142,7 @@ export function ProjectDetail({
       setKnowledgeDraft(null);
       await onChanged();
     } catch (error) {
-      onError(error);
+      await handleSaveError(error);
     }
   }
 
@@ -211,6 +225,24 @@ export function ProjectDetail({
     }
   }
 
+  async function openVersions() {
+    if (!task) return;
+    try { setVersions(await api.taskVersions(task.id)); } catch (error) { onError(error); }
+  }
+
+  async function restoreVersion(version: TaskVersion) {
+    if (!task) return;
+    if (!window.confirm(collaboration.restoreConfirm)) return;
+    setRestoringVersionId(version.id);
+    try {
+      await api.restoreTaskVersion(task.id, version.id);
+      setVersions(null);
+      await onChanged();
+    } catch (error) {
+      await handleSaveError(error);
+    } finally { setRestoringVersionId(null); }
+  }
+
   const knowledgeFields = [
     { field: "recentDecisions" as const, title: t.recentDecisions, type: "RECENT_DECISIONS" as NoteType, value: task.recentDecisions || "" },
     { field: "recentExperiments" as const, title: t.recentExperiments, type: "RECENT_EXPERIMENTS" as NoteType, value: task.recentExperiments || "" },
@@ -253,6 +285,7 @@ export function ProjectDetail({
                 <Download size={17} />{exportingAiJson ? t.exportingAiJson : t.exportAiJson}
               </button>
               <button className="secondary-button" type="button" onClick={() => setShareOpen(true)} disabled={!canManageShares(task)}><Share2 size={17} />{t.shareProject}</button>
+              <button className="secondary-button" type="button" onClick={openVersions}><History size={17} />{collaboration.history}</button>
               <button className="primary-button" type="button" onClick={() => setTitleDraft(task.taskTitle || "")} disabled={!canEdit(task)}><Edit3 size={17} />{t.edit}</button>
             </>
           ) : (
@@ -367,6 +400,7 @@ export function ProjectDetail({
       </section>
       </div>
       {shareOpen && <ShareModal locale={locale} task={task} onClose={() => setShareOpen(false)} onError={onError} />}
+      {versions && <div className="modal-shell" role="dialog" aria-modal="true"><section className="editor-panel version-history-panel"><div className="editor-head"><h3>{collaboration.history}</h3><button className="icon-only" type="button" onClick={() => setVersions(null)}><X size={18} /></button></div><div className="version-list">{versions.length ? versions.map((version) => <article className="version-row" key={version.id}><div><strong>#{version.revision}</strong><p>{new Date(version.createdAt).toLocaleString()} · {version.changedBy}</p></div><button className="secondary-button" type="button" disabled={!canEdit(task) || restoringVersionId !== null} onClick={() => void restoreVersion(version)}>{restoringVersionId === version.id ? t.saving : collaboration.restore}</button></article>) : <p className="empty-copy">{collaboration.empty}</p>}</div><button className="ghost-button" type="button" onClick={() => setVersions(null)}>{collaboration.close}</button></section></div>}
       {descriptionDraft !== null && (
         <KnowledgeEditModal
           locale={locale}

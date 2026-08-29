@@ -33,6 +33,29 @@ public class SqliteMigrationConfig {
         ensureFlashNotesSoftDeleteColumns();
         ensurePersonalTasksTable();
         ensureGlobalAiSuggestionsTable();
+        ensureTaskVersioning();
+    }
+
+    private void ensureTaskVersioning() {
+        List<Map<String, Object>> taskColumns = jdbcTemplate.queryForList("PRAGMA table_info(tasks)");
+        if (taskColumns.stream().noneMatch(column -> "revision".equalsIgnoreCase(String.valueOf(column.get("name"))))) {
+            jdbcTemplate.execute("ALTER TABLE tasks ADD COLUMN revision INTEGER NOT NULL DEFAULT 1");
+        }
+        jdbcTemplate.update("UPDATE tasks SET revision = 1 WHERE revision IS NULL OR revision < 1");
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS task_versions (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    task_id INTEGER NOT NULL,
+                    revision INTEGER NOT NULL,
+                    snapshot_json TEXT NOT NULL,
+                    change_reason TEXT NOT NULL,
+                    changed_by_user_id INTEGER NOT NULL,
+                    created_at DATETIME NOT NULL,
+                    CONSTRAINT fk_task_versions_task FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+                    CONSTRAINT fk_task_versions_user FOREIGN KEY(changed_by_user_id) REFERENCES users(id)
+                )
+                """);
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_task_versions_task ON task_versions(task_id, id DESC)");
     }
 
     private void ensureUsersTable() {

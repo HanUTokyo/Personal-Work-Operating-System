@@ -9,6 +9,7 @@ import type {
   Task,
   TaskNote,
   TaskPayload,
+  TaskVersion,
   TaskShare,
   SharePermission,
   UserResponse,
@@ -129,6 +130,14 @@ export const api = {
 
   updateTask(taskId: number, payload: TaskPayload) {
     return request<Task>(`/tasks/${taskId}`, { method: "PUT", body: JSON.stringify(payload) });
+  },
+
+  taskVersions(taskId: number) {
+    return request<TaskVersion[]>(`/tasks/${taskId}/versions`);
+  },
+
+  restoreTaskVersion(taskId: number, versionId: number) {
+    return request<Task>(`/tasks/${taskId}/versions/${versionId}/restore`, { method: "POST" });
   },
 
   deleteTask(taskId: number) {

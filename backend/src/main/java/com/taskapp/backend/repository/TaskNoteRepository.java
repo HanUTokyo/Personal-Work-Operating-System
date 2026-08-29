@@ -16,6 +16,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import com.taskapp.backend.dto.TaskNoteResponse;
 
 @Repository
 public class TaskNoteRepository {
@@ -150,6 +151,16 @@ public class TaskNoteRepository {
                 taskId
         );
         return affectedRows > 0;
+    }
+
+    public void replaceAll(Long taskId, List<TaskNoteResponse> notes, LocalDateTime now) {
+        jdbcTemplate.update("UPDATE task_notes SET is_deleted = 1, deleted_at = ?, updated_at = ? WHERE task_id = ? AND is_deleted = 0", formatDateTime(now), formatDateTime(now), taskId);
+        if (notes == null) return;
+        for (TaskNoteResponse note : notes) {
+            if (note.getNoteType() != null && note.getNoteContent() != null && !note.getNoteContent().isBlank()) {
+                save(taskId, note.getNoteType(), note.getNoteContent(), now);
+            }
+        }
     }
 
     private String normalizeText(String text) {
