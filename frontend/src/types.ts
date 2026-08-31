@@ -97,6 +97,17 @@ export interface TaskVersion {
   createdAt: string;
 }
 
+export interface TaskConflict {
+  draftId?: number;
+  latestTask: Task;
+}
+
+export interface TaskConflictDraft {
+  id: number;
+  payload: TaskPayload;
+  createdAt: string;
+}
+
 export interface TaskShare {
   id: number;
   taskId: number;

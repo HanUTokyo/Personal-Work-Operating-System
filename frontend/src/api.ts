@@ -10,6 +10,8 @@ import type {
   TaskNote,
   TaskPayload,
   TaskVersion,
+  TaskConflict,
+  TaskConflictDraft,
   TaskShare,
   SharePermission,
   UserResponse,
@@ -23,6 +25,10 @@ const API_BASE_URL =
   `${window.location.protocol}//${window.location.hostname || "localhost"}:8080/api`;
 
 let authToken = localStorage.getItem("task-app-auth-token") || "";
+
+export class ApiRequestError<T = unknown> extends Error {
+  constructor(message: string, public readonly status: number, public readonly data?: T) { super(message); }
+}
 
 export function getAuthToken() {
   return authToken;
@@ -49,7 +55,7 @@ async function request<T>(path: string, options: RequestInit = {}): Promise<T> {
   const payload = (await response.json().catch(() => null)) as ApiResponse<T> | null;
   if (!response.ok || !payload?.success) {
     const detail = payload?.errors ? Object.values(payload.errors)[0] : undefined;
-    throw new Error(detail || payload?.message || `HTTP ${response.status}`);
+    throw new ApiRequestError(detail || payload?.message || `HTTP ${response.status}`, response.status, payload?.data);
   }
   return payload.data;
 }
@@ -138,6 +144,14 @@ export const api = {
 
   restoreTaskVersion(taskId: number, versionId: number) {
     return request<Task>(`/tasks/${taskId}/versions/${versionId}/restore`, { method: "POST" });
+  },
+
+  taskConflictDraft(taskId: number) {
+    return request<TaskConflictDraft | null>(`/tasks/${taskId}/conflict-draft`);
+  },
+
+  resolveTaskConflictDraft(taskId: number, draftId: number) {
+    return request<void>(`/tasks/${taskId}/conflict-draft/${draftId}/resolve`, { method: "POST" });
   },
 
   deleteTask(taskId: number) {

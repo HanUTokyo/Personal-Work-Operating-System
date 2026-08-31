@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
 import { ArrowLeft, BookOpen, Check, ChevronDown, ChevronRight, Download, Edit3, History, Plus, Share2, X } from "lucide-react";
-import { api } from "../../api";
+import { api, ApiRequestError } from "../../api";
 import { dictionaries, noteTypeLabel, priorityLabel } from "../../i18n";
-import type { Locale, NoteType, Phase, PhaseStatus, Priority, Task, TaskVersion } from "../../types";
+import type { Locale, NoteType, Phase, PhaseStatus, Priority, Task, TaskConflict, TaskPayload, TaskVersion } from "../../types";
 import { canEdit, canManageShares, ensurePhases, formatDate, formatProgress, movePhase, toTaskPayload } from "../../utils";
 import { KnowledgeBlock } from "../../components/knowledge/KnowledgeBlock";
 import { KnowledgeEditModal } from "../../components/knowledge/KnowledgeEditModal";
@@ -41,7 +41,9 @@ export function ProjectDetail({
   const [collapsedKnowledgeTypes, setCollapsedKnowledgeTypes] = useState<Set<NoteType>>(() => new Set());
   const [versions, setVersions] = useState<TaskVersion[] | null>(null);
   const [restoringVersionId, setRestoringVersionId] = useState<number | null>(null);
-  const collaboration = locale === "zh" ? { history: "版本历史", restore: "恢复此版本", close: "关闭", empty: "尚无历史版本", conflict: "此项目已被另一位协作者修改。为避免覆盖对方内容，当前保存没有执行；将重新加载最新版本。", restoreConfirm: "恢复会将项目、阶段和知识恢复到该版本；当前内容会先自动保存为新版本。继续吗？" } : locale === "ja" ? { history: "バージョン履歴", restore: "この版を復元", close: "閉じる", empty: "履歴はまだありません", conflict: "別の共同編集者がこのプロジェクトを変更しました。上書きを防ぐため保存しませんでした。最新の内容を再読み込みします。", restoreConfirm: "プロジェクト、フェーズ、ナレッジをこの版に復元します。現在の内容は先に自動保存されます。続行しますか？" } : { history: "Version history", restore: "Restore this version", close: "Close", empty: "No saved versions yet", conflict: "This project was changed by another collaborator. Your save was not applied, so their work is protected. The latest version will now reload.", restoreConfirm: "This restores the project, phases, and knowledge from this version. The current content is saved as a new version first. Continue?" };
+  const [pendingConflict, setPendingConflict] = useState<{ payload: TaskPayload; conflict: TaskConflict } | null>(null);
+  const [resolvingConflict, setResolvingConflict] = useState(false);
+  const collaboration = locale === "zh" ? { history: "版本历史", restore: "恢复此版本", close: "关闭", empty: "尚无历史版本", conflictTitle: "发现协作冲突", conflictCopy: "另一位协作者已保存了更新。你的修改已安全保存为草稿，绝不会丢失。", keepMine: "保留我的修改并保存", useLatest: "使用最新版本", keepEditing: "继续编辑我的草稿", restoreConfirm: "恢复会将项目、阶段和知识恢复到该版本；当前内容会先自动保存为新版本。继续吗？" } : locale === "ja" ? { history: "バージョン履歴", restore: "この版を復元", close: "閉じる", empty: "履歴はまだありません", conflictTitle: "共同編集の競合", conflictCopy: "別の共同編集者が更新を保存しました。あなたの変更は下書きとして安全に保存され、失われません。", keepMine: "自分の変更を保持して保存", useLatest: "最新バージョンを使う", keepEditing: "下書きの編集を続ける", restoreConfirm: "プロジェクト、フェーズ、ナレッジをこの版に復元します。現在の内容は先に自動保存されます。続行しますか？" } : { history: "Version history", restore: "Restore this version", close: "Close", empty: "No saved versions yet", conflictTitle: "Collaboration conflict", conflictCopy: "Another collaborator saved changes first. Your changes are safely kept as a draft and will not be lost.", keepMine: "Keep my changes and save", useLatest: "Use latest version", keepEditing: "Keep editing my draft", restoreConfirm: "This restores the project, phases, and knowledge from this version. The current content is saved as a new version first. Continue?" };
 
   useEffect(() => {
     setPhaseDraft(null);
@@ -53,39 +55,50 @@ export function ProjectDetail({
     setExportingAiJson(false);
     setCollapsedKnowledgeTypes(new Set());
     setVersions(null);
+    setPendingConflict(null);
   }, [task?.id]);
+
+  useEffect(() => {
+    if (!task || !canEdit(task)) return;
+    api.taskConflictDraft(task.id).then((draft) => {
+      if (draft) setPendingConflict({ payload: draft.payload, conflict: { draftId: draft.id, latestTask: task } });
+    }).catch(() => undefined);
+  }, [task?.id, task?.revision]);
 
   if (!task) {
     return <section className="panel detail-panel project-detail-page empty-detail"><BookOpen /><p>{t.selectProject}</p></section>;
   }
 
-  async function handleSaveError(error: unknown) {
-    const message = error instanceof Error ? error.message : "";
-    if (message.includes("changed by another collaborator")) {
-      window.alert(collaboration.conflict);
-      await onChanged();
-      return;
+  async function handleSaveError(error: unknown, payload?: TaskPayload) {
+    if (error instanceof ApiRequestError && error.status === 409 && payload && error.data && typeof error.data === "object" && "latestTask" in error.data) {
+      setPendingConflict({ payload, conflict: error.data as TaskConflict });
+      return false;
     }
     onError(error);
+    return false;
   }
 
   async function savePhases(nextPhases: Phase[]) {
     if (!task || !canEdit(task)) return;
+    const payload = toTaskPayload(task, nextPhases);
     try {
-      await api.updateTask(task.id, toTaskPayload(task, nextPhases));
+      await api.updateTask(task.id, payload);
       await onChanged();
+      return true;
     } catch (error) {
-      await handleSaveError(error);
+      return handleSaveError(error, payload);
     }
   }
 
   async function saveTaskPatch(patch: Partial<Task>) {
     if (!task || !canEdit(task)) return;
+    const payload = toTaskPayload({ ...task, ...patch }, ensurePhases(task));
     try {
-      await api.updateTask(task.id, toTaskPayload({ ...task, ...patch }, ensurePhases(task)));
+      await api.updateTask(task.id, payload);
       await onChanged();
+      return true;
     } catch (error) {
-      await handleSaveError(error);
+      return handleSaveError(error, payload);
     }
   }
 
@@ -138,11 +151,12 @@ export function ProjectDetail({
   async function saveKnowledgeField(field: KnowledgeField, value: string) {
     if (!task || !canEdit(task)) return;
     try {
-      await api.updateTask(task.id, toTaskPayload({ ...task, [field]: value }, ensurePhases(task)));
+      const payload = toTaskPayload({ ...task, [field]: value }, ensurePhases(task));
+      await api.updateTask(task.id, payload);
       setKnowledgeDraft(null);
       await onChanged();
     } catch (error) {
-      await handleSaveError(error);
+      await handleSaveError(error, toTaskPayload({ ...task, [field]: value }, ensurePhases(task)));
     }
   }
 
@@ -185,14 +199,12 @@ export function ProjectDetail({
   }
 
   async function saveDescription(value: string) {
-    await saveTaskPatch({ taskDescription: value });
-    setDescriptionDraft(null);
+    if (await saveTaskPatch({ taskDescription: value })) setDescriptionDraft(null);
   }
 
   async function saveTitle() {
     if (!titleDraft?.trim()) return;
-    await saveTaskPatch({ taskTitle: titleDraft.trim() });
-    setTitleDraft(null);
+    if (await saveTaskPatch({ taskTitle: titleDraft.trim() })) setTitleDraft(null);
   }
 
   async function savePriority(priority: Priority) {
@@ -241,6 +253,27 @@ export function ProjectDetail({
     } catch (error) {
       await handleSaveError(error);
     } finally { setRestoringVersionId(null); }
+  }
+
+  async function useLatestConflictVersion() {
+    if (task && pendingConflict?.conflict.draftId) await api.resolveTaskConflictDraft(task.id, pendingConflict.conflict.draftId);
+    setPendingConflict(null);
+    setDescriptionDraft(null); setTitleDraft(null); setKnowledgeDraft(null); setPhaseDraft(null); setPhaseDraftMode(null);
+    await onChanged();
+  }
+
+  async function keepMyConflictChanges() {
+    if (!task || !pendingConflict) return;
+    setResolvingConflict(true);
+    try {
+      await api.updateTask(task.id, { ...pendingConflict.payload, expectedRevision: pendingConflict.conflict.latestTask.revision });
+      if (pendingConflict.conflict.draftId) await api.resolveTaskConflictDraft(task.id, pendingConflict.conflict.draftId);
+      setPendingConflict(null);
+      setDescriptionDraft(null); setTitleDraft(null); setKnowledgeDraft(null); setPhaseDraft(null); setPhaseDraftMode(null);
+      await onChanged();
+    } catch (error) {
+      await handleSaveError(error, pendingConflict.payload);
+    } finally { setResolvingConflict(false); }
   }
 
   const knowledgeFields = [
@@ -401,6 +434,7 @@ export function ProjectDetail({
       </div>
       {shareOpen && <ShareModal locale={locale} task={task} onClose={() => setShareOpen(false)} onError={onError} />}
       {versions && <div className="modal-shell" role="dialog" aria-modal="true"><section className="editor-panel version-history-panel"><div className="editor-head"><h3>{collaboration.history}</h3><button className="icon-only" type="button" onClick={() => setVersions(null)}><X size={18} /></button></div><div className="version-list">{versions.length ? versions.map((version) => <article className="version-row" key={version.id}><div><strong>#{version.revision}</strong><p>{new Date(version.createdAt).toLocaleString()} · {version.changedBy}</p></div><button className="secondary-button" type="button" disabled={!canEdit(task) || restoringVersionId !== null} onClick={() => void restoreVersion(version)}>{restoringVersionId === version.id ? t.saving : collaboration.restore}</button></article>) : <p className="empty-copy">{collaboration.empty}</p>}</div><button className="ghost-button" type="button" onClick={() => setVersions(null)}>{collaboration.close}</button></section></div>}
+      {pendingConflict && <div className="modal-shell" role="dialog" aria-modal="true"><section className="editor-panel conflict-panel"><div className="editor-head"><div><p className="eyebrow">{collaboration.conflictTitle}</p><h3>{task.taskTitle}</h3></div><button className="icon-only" type="button" onClick={() => setPendingConflict(null)}><X size={18} /></button></div><p>{collaboration.conflictCopy}</p><div className="conflict-summary"><div><span>{locale === "zh" ? "你的草稿" : locale === "ja" ? "あなたの下書き" : "Your draft"}</span><strong>{pendingConflict.payload.taskTitle}</strong></div><div><span>{locale === "zh" ? "最新已保存版本" : locale === "ja" ? "最新の保存版" : "Latest saved version"}</span><strong>{pendingConflict.conflict.latestTask.taskTitle}</strong></div></div><p className="muted-copy">{locale === "zh" ? "“保留我的修改”会先自动备份最新版，再将你的草稿保存为新版本。你也可以继续编辑草稿，或切换到最新版。" : locale === "ja" ? "「自分の変更を保持」は、最新バージョンを自動バックアップしてから下書きを新しい版として保存します。" : "Keeping your changes automatically backs up the latest version first, then saves your draft as a new version."}</p><div className="conflict-actions"><button className="ghost-button" type="button" onClick={() => setPendingConflict(null)} disabled={resolvingConflict}>{collaboration.keepEditing}</button><button className="secondary-button" type="button" onClick={() => void useLatestConflictVersion()} disabled={resolvingConflict}>{collaboration.useLatest}</button><button className="primary-button" type="button" onClick={() => void keepMyConflictChanges()} disabled={resolvingConflict}>{resolvingConflict ? t.saving : collaboration.keepMine}</button></div></section></div>}
       {descriptionDraft !== null && (
         <KnowledgeEditModal
           locale={locale}
@@ -429,9 +463,10 @@ export function ProjectDetail({
           onClose={() => { setPhaseDraft(null); setPhaseDraftMode(null); }}
           onSave={async (draft) => {
             if (!phaseDraftMode) return;
-            await savePhases(savePhaseDraftToList(ensurePhases(task), phaseDraftMode, draft));
-            setPhaseDraft(null);
-            setPhaseDraftMode(null);
+            if (await savePhases(savePhaseDraftToList(ensurePhases(task), phaseDraftMode, draft))) {
+              setPhaseDraft(null);
+              setPhaseDraftMode(null);
+            }
           }}
         />
       )}

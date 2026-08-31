@@ -11,6 +11,8 @@ import com.taskapp.backend.dto.TaskShareRequest;
 import com.taskapp.backend.dto.TaskShareResponse;
 import com.taskapp.backend.dto.TaskUpdateRequest;
 import com.taskapp.backend.dto.TaskVersionResponse;
+import com.taskapp.backend.dto.TaskConflictResponse;
+import com.taskapp.backend.dto.TaskConflictDraftResponse;
 import com.taskapp.backend.dto.UserResponse;
 import com.taskapp.backend.exception.AuthorizationException;
 import com.taskapp.backend.exception.TaskNoteNotFoundException;
@@ -33,6 +35,7 @@ import com.taskapp.backend.repository.TaskPinRepository;
 import com.taskapp.backend.repository.TaskRepository;
 import com.taskapp.backend.repository.TaskShareRepository;
 import com.taskapp.backend.repository.TaskVersionRepository;
+import com.taskapp.backend.repository.TaskConflictDraftRepository;
 import com.taskapp.backend.repository.UserRepository;
 import com.taskapp.backend.model.TaskVersion;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -66,6 +69,7 @@ public class TaskService {
     private final AuthService authService;
     private final TaskVersionRepository taskVersionRepository;
     private final ObjectMapper objectMapper;
+    private final TaskConflictDraftRepository taskConflictDraftRepository;
 
     public TaskService(
             TaskRepository taskRepository,
@@ -77,7 +81,8 @@ public class TaskService {
             UserRepository userRepository,
             AuthService authService,
             TaskVersionRepository taskVersionRepository,
-            ObjectMapper objectMapper
+            ObjectMapper objectMapper,
+            TaskConflictDraftRepository taskConflictDraftRepository
     ) {
         this.taskRepository = taskRepository;
         this.taskPhaseRepository = taskPhaseRepository;
@@ -89,6 +94,7 @@ public class TaskService {
         this.authService = authService;
         this.taskVersionRepository = taskVersionRepository;
         this.objectMapper = objectMapper;
+        this.taskConflictDraftRepository = taskConflictDraftRepository;
     }
 
     public List<TaskResponse> getAllTasks(String authorizationHeader, String keyword, String sortBy, String order, boolean archived) {
@@ -169,14 +175,14 @@ public class TaskService {
         return toResponse(savedTask, savedPhases, knowledge, notes, currentUser, currentUser);
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = TaskConflictException.class)
     public TaskResponse updateTask(String authorizationHeader, Long id, TaskUpdateRequest request) {
         AppUser currentUser = authService.requireUser(authorizationHeader);
         Task existingTask = taskRepository.findById(id)
                 .orElseThrow(() -> new TaskNotFoundException(id));
         requireCanEdit(currentUser, existingTask);
         if (request.getExpectedRevision() == null || request.getExpectedRevision() != existingTask.getRevision()) {
-            throw new TaskConflictException();
+            throw conflict(existingTask, currentUser, request);
         }
         snapshot(existingTask, currentUser, "project update");
 
@@ -191,7 +197,7 @@ public class TaskService {
         existingTask.setUpdatedAt(now);
 
         if (!taskRepository.update(existingTask, request.getExpectedRevision())) {
-            throw new TaskConflictException();
+            throw conflict(taskRepository.findById(id).orElse(existingTask), currentUser, request);
         }
         Task updatedTask = existingTask;
         taskRepository.setDemo(id, false);
@@ -217,6 +223,26 @@ public class TaskService {
         Task task = taskRepository.findById(id).orElseThrow(() -> new TaskNotFoundException(id));
         requireCanView(currentUser, task);
         return taskVersionRepository.findByTaskId(id).stream().map(this::toVersionResponse).toList();
+    }
+
+    public TaskConflictDraftResponse getConflictDraft(String authorizationHeader, Long id) {
+        AppUser currentUser = authService.requireUser(authorizationHeader);
+        Task task = taskRepository.findById(id).orElseThrow(() -> new TaskNotFoundException(id));
+        requireCanEdit(currentUser, task);
+        return taskConflictDraftRepository.findLatestActive(id, currentUser.getId()).map(draft -> {
+            try {
+                TaskConflictDraftResponse response = new TaskConflictDraftResponse();
+                response.setId(draft.id()); response.setCreatedAt(draft.createdAt()); response.setPayload(objectMapper.readValue(draft.payloadJson(), TaskUpdateRequest.class));
+                return response;
+            } catch (JsonProcessingException ex) { throw new IllegalArgumentException("Draft data could not be read"); }
+        }).orElse(null);
+    }
+
+    public void resolveConflictDraft(String authorizationHeader, Long id, Long draftId) {
+        AppUser currentUser = authService.requireUser(authorizationHeader);
+        Task task = taskRepository.findById(id).orElseThrow(() -> new TaskNotFoundException(id));
+        requireCanEdit(currentUser, task);
+        taskConflictDraftRepository.resolve(draftId, currentUser.getId(), LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
     }
 
     @Transactional
@@ -580,6 +606,19 @@ public class TaskService {
         response.setId(version.getId()); response.setRevision(version.getRevision()); response.setChangeReason(version.getChangeReason());
         response.setChangedBy(version.getChangedByUsername()); response.setCreatedAt(version.getCreatedAt());
         return response;
+    }
+
+    private TaskConflictException conflict(Task task, AppUser currentUser, TaskUpdateRequest request) {
+        try {
+            Long draftId = taskConflictDraftRepository.save(task.getId(), currentUser.getId(), request.getExpectedRevision() == null ? 0 : request.getExpectedRevision(), objectMapper.writeValueAsString(request), LocalDateTime.now().truncatedTo(ChronoUnit.SECONDS));
+            AppUser owner = userRepository.findById(task.getOwnerUserId()).orElse(null);
+            TaskConflictResponse response = new TaskConflictResponse();
+            response.setDraftId(draftId);
+            response.setLatestTask(toResponse(task, taskPhaseRepository.findByTaskId(task.getId()), taskKnowledgeRepository.findByTaskId(task.getId()).orElse(null), taskNoteRepository.findByTaskId(task.getId()), currentUser, owner));
+            return new TaskConflictException(response);
+        } catch (JsonProcessingException ex) {
+            return new TaskConflictException();
+        }
     }
 
     private TaskPhase fromPhaseResponse(PhaseResponse response) {

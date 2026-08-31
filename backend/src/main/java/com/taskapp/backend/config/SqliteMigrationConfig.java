@@ -34,6 +34,7 @@ public class SqliteMigrationConfig {
         ensurePersonalTasksTable();
         ensureGlobalAiSuggestionsTable();
         ensureTaskVersioning();
+        ensureTaskConflictDrafts();
     }
 
     private void ensureTaskVersioning() {
@@ -56,6 +57,28 @@ public class SqliteMigrationConfig {
                 )
                 """);
         jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_task_versions_task ON task_versions(task_id, id DESC)");
+    }
+
+    private void ensureTaskConflictDrafts() {
+        jdbcTemplate.execute("""
+                CREATE TABLE IF NOT EXISTS task_conflict_drafts (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    task_id INTEGER NOT NULL,
+                    user_id INTEGER NOT NULL,
+                    base_revision INTEGER NOT NULL,
+                    payload_json TEXT NOT NULL,
+                    created_at DATETIME NOT NULL,
+                    updated_at DATETIME NOT NULL,
+                    resolved_at DATETIME,
+                    CONSTRAINT fk_task_conflict_drafts_task FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+                    CONSTRAINT fk_task_conflict_drafts_user FOREIGN KEY(user_id) REFERENCES users(id)
+                )
+                """);
+        List<Map<String, Object>> columns = jdbcTemplate.queryForList("PRAGMA table_info(task_conflict_drafts)");
+        if (columns.stream().noneMatch(column -> "resolved_at".equalsIgnoreCase(String.valueOf(column.get("name"))))) {
+            jdbcTemplate.execute("ALTER TABLE task_conflict_drafts ADD COLUMN resolved_at DATETIME");
+        }
+        jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS idx_task_conflict_drafts_user_task ON task_conflict_drafts(user_id, task_id, id DESC)");
     }
 
     private void ensureUsersTable() {

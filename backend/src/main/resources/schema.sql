@@ -51,6 +51,20 @@ CREATE TABLE IF NOT EXISTS task_versions (
 );
 CREATE INDEX IF NOT EXISTS idx_task_versions_task ON task_versions(task_id, id DESC);
 
+CREATE TABLE IF NOT EXISTS task_conflict_drafts (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    task_id INTEGER NOT NULL,
+    user_id INTEGER NOT NULL,
+    base_revision INTEGER NOT NULL,
+    payload_json TEXT NOT NULL,
+    created_at DATETIME NOT NULL,
+    updated_at DATETIME NOT NULL,
+    resolved_at DATETIME,
+    CONSTRAINT fk_task_conflict_drafts_task FOREIGN KEY(task_id) REFERENCES tasks(id) ON DELETE CASCADE,
+    CONSTRAINT fk_task_conflict_drafts_user FOREIGN KEY(user_id) REFERENCES users(id)
+);
+CREATE INDEX IF NOT EXISTS idx_task_conflict_drafts_user_task ON task_conflict_drafts(user_id, task_id, id DESC);
+
 CREATE TABLE IF NOT EXISTS task_phases (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     task_id INTEGER NOT NULL,

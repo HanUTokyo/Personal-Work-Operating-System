@@ -12,6 +12,7 @@ import com.taskapp.backend.dto.TaskShareRequest;
 import com.taskapp.backend.dto.TaskShareResponse;
 import com.taskapp.backend.dto.TaskUpdateRequest;
 import com.taskapp.backend.dto.TaskVersionResponse;
+import com.taskapp.backend.dto.TaskConflictDraftResponse;
 import com.taskapp.backend.service.TaskService;
 import com.taskapp.backend.service.TaskAiExportService;
 import com.fasterxml.jackson.core.JsonProcessingException;
@@ -128,6 +129,21 @@ public class TaskController {
             @PathVariable Long versionId
     ) {
         return ResponseEntity.ok(ApiResponse.success("Project version restored", taskService.restoreTaskVersion(authorizationHeader, id, versionId)));
+    }
+
+    @GetMapping("/{id}/conflict-draft")
+    public ResponseEntity<ApiResponse<TaskConflictDraftResponse>> getConflictDraft(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader, @PathVariable Long id
+    ) {
+        return ResponseEntity.ok(ApiResponse.success("Conflict draft fetched", taskService.getConflictDraft(authorizationHeader, id)));
+    }
+
+    @PostMapping("/{id}/conflict-draft/{draftId}/resolve")
+    public ResponseEntity<ApiResponse<Void>> resolveConflictDraft(
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader, @PathVariable Long id, @PathVariable Long draftId
+    ) {
+        taskService.resolveConflictDraft(authorizationHeader, id, draftId);
+        return ResponseEntity.ok(ApiResponse.success("Conflict draft resolved", null));
     }
 
     @DeleteMapping("/{id}")

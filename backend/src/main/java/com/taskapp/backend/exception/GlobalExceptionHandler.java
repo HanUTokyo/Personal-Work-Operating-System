@@ -62,8 +62,10 @@ public class GlobalExceptionHandler {
     }
 
     @ExceptionHandler(TaskConflictException.class)
-    public ResponseEntity<ApiResponse<Void>> handleTaskConflict(TaskConflictException ex) {
-        return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.failure(ex.getMessage(), null));
+    public ResponseEntity<ApiResponse<com.taskapp.backend.dto.TaskConflictResponse>> handleTaskConflict(TaskConflictException ex) {
+        ApiResponse<com.taskapp.backend.dto.TaskConflictResponse> response = ApiResponse.failure(ex.getMessage(), null);
+        response.setData(ex.getConflict());
+        return ResponseEntity.status(HttpStatus.CONFLICT).body(response);
     }
 
     @ExceptionHandler(AuthenticationException.class)
