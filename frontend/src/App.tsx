@@ -1,4 +1,5 @@
 import { FormEvent, useEffect, useMemo, useState } from "react";
+import { matchPath, useLocation, useNavigate } from "react-router-dom";
 import { api, clearAuthToken, getAuthToken } from "./api";
 import { dictionaries } from "./i18n";
 import type { GlobalActionGoal, GlobalAiSuggestion, Locale, OnboardingResponse, PersonalTask, Task, UserResponse } from "./types";
@@ -23,6 +24,8 @@ const localeOrder: Locale[] = ["zh", "en", "ja"];
 const localeLang: Record<Locale, string> = { zh: "zh-CN", en: "en", ja: "ja" };
 
 export function App({ initialLocale }: AppProps) {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [locale, setLocale] = useState<Locale>(initialLocale);
   const t = dictionaries[locale];
   const [theme, setTheme] = useState<"dark" | "light">(() => {
@@ -45,10 +48,14 @@ export function App({ initialLocale }: AppProps) {
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
-  const [editorTask, setEditorTask] = useState<Task | null | "new">(null);
-  const [flashOpen, setFlashOpen] = useState(false);
-  const [detailOpen, setDetailOpen] = useState(false);
   const [exportingAllProjects, setExportingAllProjects] = useState(false);
+  const projectRoute = matchPath("/projects/:projectId", location.pathname);
+  const projectEditRoute = matchPath("/projects/:projectId/edit", location.pathname);
+  const isNewProjectRoute = location.pathname === "/projects/new";
+  const flashOpen = location.pathname === "/flash-notes";
+  const detailOpen = Boolean(projectRoute) && !projectEditRoute;
+  const routeProjectId = Number((projectRoute || projectEditRoute)?.params.projectId || 0) || null;
+  const editorTask: Task | null | "new" = isNewProjectRoute ? "new" : routeProjectId && projectEditRoute ? tasks.find((task) => task.id === routeProjectId) || null : null;
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -73,10 +80,7 @@ export function App({ initialLocale }: AppProps) {
       .catch(() => clearSession());
   }, []);
 
-  const selectedTask = useMemo(
-    () => tasks.find((task) => task.id === selectedTaskId) || tasks[0] || null,
-    [selectedTaskId, tasks]
-  );
+  const selectedTask = useMemo(() => routeProjectId ? tasks.find((task) => task.id === routeProjectId) || null : tasks.find((task) => task.id === selectedTaskId) || tasks[0] || null, [routeProjectId, selectedTaskId, tasks]);
   const mainViewKey = !user
     ? "auth"
     : flashOpen
@@ -89,6 +93,11 @@ export function App({ initialLocale }: AppProps) {
     if (selectedTask && selectedTask.id !== selectedTaskId) setSelectedTaskId(selectedTask.id);
     if (!tasks.length) setSelectedTaskId(null);
   }, [selectedTask, selectedTaskId, tasks.length]);
+
+  useEffect(() => {
+    if (location.pathname === "/archived") setFilter("archived");
+    else if (filter === "archived") setFilter("all");
+  }, [location.pathname]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0 });
@@ -125,7 +134,7 @@ export function App({ initialLocale }: AppProps) {
   async function loadTasks(archived = filter === "archived") {
     const nextTasks = await api.tasks({ sortBy: "updatedAt", order: "desc", archived });
     setTasks(nextTasks);
-    setSelectedTaskId((current) => current || nextTasks[0]?.id || null);
+    setSelectedTaskId((current) => routeProjectId || current || nextTasks[0]?.id || null);
   }
 
   async function loadPersonalTasks() {
@@ -164,6 +173,7 @@ export function App({ initialLocale }: AppProps) {
     setActionGoals([]);
     setOnboarding(null);
     setSelectedTaskId(null);
+    navigate("/", { replace: true });
   }
 
   async function handleAuth(event: FormEvent) {
@@ -273,7 +283,7 @@ export function App({ initialLocale }: AppProps) {
         locale={locale}
         theme={theme}
         user={user}
-        onFlashOpen={() => setFlashOpen(true)}
+        onFlashOpen={() => navigate("/flash-notes")}
         onLocaleToggle={() => setLocale((current) => localeOrder[(localeOrder.indexOf(current) + 1) % localeOrder.length])}
         onThemeToggle={() => setTheme(theme === "dark" ? "light" : "dark")}
         onLogout={clearSession}
@@ -281,12 +291,12 @@ export function App({ initialLocale }: AppProps) {
 
       <main className={(flashOpen || (detailOpen && selectedTask)) ? "project-page-shell" : "workspace home-workspace"}>
         {flashOpen ? (
-          <FlashNotes locale={locale} onClose={() => { setFlashOpen(false); void refreshOnboarding(); }} onError={showToast} />
+          <FlashNotes locale={locale} onClose={() => { navigate("/"); void refreshOnboarding(); }} onError={showToast} />
         ) : detailOpen && selectedTask ? (
           <ProjectDetail
             locale={locale}
             task={selectedTask}
-            onClose={() => setDetailOpen(false)}
+            onClose={() => navigate("/")}
             onChanged={async () => { await loadTasks(); await refreshOnboarding(); }}
             onError={showToast}
           />
@@ -297,9 +307,9 @@ export function App({ initialLocale }: AppProps) {
               locale={locale}
               onboarding={onboarding}
               onOpen={() => updateGuide("open")}
-              onCreateProject={() => setEditorTask("new")}
+              onCreateProject={() => navigate("/projects/new")}
               onOpenFocus={() => document.getElementById("current-action-goals")?.scrollIntoView({ behavior: "smooth", block: "center" })}
-              onOpenKnowledge={() => setFlashOpen(true)}
+              onOpenKnowledge={() => navigate("/flash-notes")}
               onOpenAi={() => document.getElementById("ai-suggestions")?.scrollIntoView({ behavior: "smooth", block: "center" })}
             />
             <Dashboard
@@ -319,9 +329,7 @@ export function App({ initialLocale }: AppProps) {
               exportingAllProjects={exportingAllProjects}
               onError={showToast}
               onSelect={(id) => {
-                setSelectedTaskId(id);
-                setFlashOpen(false);
-                setDetailOpen(true);
+                navigate(`/projects/${id}`);
               }}
             />
 
@@ -334,23 +342,23 @@ export function App({ initialLocale }: AppProps) {
               sortBy={sortBy}
               sortOrder={sortOrder}
               onKeywordChange={setKeyword}
-              onFilterChange={setFilter}
+              onFilterChange={(nextFilter) => {
+                setFilter(nextFilter);
+                if (nextFilter === "archived") navigate("/archived");
+                else if (location.pathname === "/archived") navigate("/");
+              }}
               onSortChange={setSortBy}
               onSortOrderToggle={() => setSortOrder((current) => current === "desc" ? "asc" : "desc")}
               onSelect={(id) => {
-                setSelectedTaskId(id);
-                setFlashOpen(false);
-                setDetailOpen(true);
+                navigate(`/projects/${id}`);
               }}
               onOpenDetail={(task) => {
-                setSelectedTaskId(task.id);
-                setFlashOpen(false);
-                setDetailOpen(true);
+                navigate(`/projects/${task.id}`);
               }}
               exportingAllProjects={exportingAllProjects}
               onExportAll={handleExportAllProjects}
-              onCreate={() => setEditorTask("new")}
-              onEdit={(task) => setEditorTask(task)}
+              onCreate={() => navigate("/projects/new")}
+              onEdit={(task) => navigate(`/projects/${task.id}/edit`)}
               onDelete={handleDeleteTask}
               onArchive={handleArchiveTask}
               onPin={handleToggleTaskPin}
@@ -363,11 +371,11 @@ export function App({ initialLocale }: AppProps) {
         <ProjectEditor
           locale={locale}
           task={editorTask === "new" ? null : editorTask}
-          onClose={() => setEditorTask(null)}
+          onClose={() => navigate(routeProjectId ? `/projects/${routeProjectId}` : "/")}
           onSaved={async () => {
-            setEditorTask(null);
             await loadTasks();
             await refreshOnboarding();
+            navigate("/");
           }}
           onError={showToast}
         />
