@@ -1193,10 +1193,11 @@ p {
 
 .rich-text ol { list-style-type: decimal; }
 
-.version-history-panel { width: min(620px, calc(100vw - 32px)); max-height: min(72vh, 620px); display: flex; flex-direction: column; gap: 14px; }
-.version-list { overflow: auto; display: grid; gap: 8px; min-width: 0; }
+.version-history-panel { width: min(620px, calc(100vw - 32px)); max-height: min(72vh, 620px); display: grid; grid-template-rows: auto minmax(0, 1fr) auto; gap: 0; overflow: hidden; }
+.version-list { overflow: auto; display: grid; align-content: start; gap: 8px; min-width: 0; padding: 14px 18px; }
 .version-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
 .version-row p { margin: 4px 0 0; color: var(--muted); font-size: .84rem; overflow-wrap: anywhere; }
+.version-history-footer { display: flex; justify-content: flex-end; padding: 12px 18px; border-top: 1px solid var(--line); background: var(--surface); }
 .conflict-panel {
   box-sizing: border-box;
   width: min(640px, calc(100vw - 32px));
@@ -1214,7 +1215,14 @@ p {
 .conflict-summary span, .muted-copy { color: var(--muted); font-size: .84rem; }
 .conflict-summary strong { overflow-wrap: anywhere; }
 .conflict-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; padding: 14px 18px; border-top: 1px solid var(--line); background: var(--surface); }
-@media (max-width: 720px) { .version-row { align-items: flex-start; flex-direction: column; } .version-row button { width: 100%; } }
+@media (max-width: 720px) {
+  .modal-shell.version-history-modal { padding: 16px; align-items: center; }
+  .modal-shell.version-history-modal .version-history-panel { width: min(620px, 100%); max-height: calc(100dvh - 32px); border-radius: 16px; }
+  .version-history-panel .editor-head { padding: 14px 16px; }
+  .version-list { padding: 12px 16px; }
+  .version-history-footer { padding: 12px 16px; }
+  .version-row { align-items: flex-start; flex-direction: column; } .version-row button { width: 100%; }
+}
 @media (max-width: 720px) {
   .modal-shell.conflict-modal { padding: 16px; align-items: center; }
   .modal-shell.conflict-modal .conflict-panel { width: min(640px, 100%); max-height: calc(100dvh - 32px); border-radius: 16px; padding: 0; }
