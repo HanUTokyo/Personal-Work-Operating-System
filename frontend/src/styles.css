@@ -1197,15 +1197,30 @@ p {
 .version-list { overflow: auto; display: grid; gap: 8px; min-width: 0; }
 .version-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; border: 1px solid var(--line); border-radius: 10px; padding: 12px; }
 .version-row p { margin: 4px 0 0; color: var(--muted); font-size: .84rem; overflow-wrap: anywhere; }
-.conflict-panel { width: min(640px, calc(100vw - 32px)); display: grid; gap: 16px; }
-.conflict-panel > p { margin: 0; overflow-wrap: anywhere; }
+.conflict-panel {
+  box-sizing: border-box;
+  width: min(640px, calc(100vw - 32px));
+  max-height: calc(100dvh - 32px);
+  grid-template-rows: auto auto auto auto auto;
+  display: grid;
+  gap: 16px;
+  overflow: auto;
+}
+.conflict-panel > * { min-width: 0; max-width: 100%; }
+.conflict-panel > p { margin: 0; overflow-wrap: anywhere; word-break: break-word; }
 .conflict-summary { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .conflict-summary > div { border: 1px solid var(--line); border-radius: 10px; padding: 12px; min-width: 0; display: grid; gap: 5px; }
 .conflict-summary span, .muted-copy { color: var(--muted); font-size: .84rem; }
 .conflict-summary strong { overflow-wrap: anywhere; }
 .conflict-actions { display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px; }
 @media (max-width: 720px) { .version-row { align-items: flex-start; flex-direction: column; } .version-row button { width: 100%; } }
-@media (max-width: 720px) { .conflict-summary { grid-template-columns: 1fr; } .conflict-actions { display: grid; grid-template-columns: 1fr; } .conflict-actions button { width: 100%; } }
+@media (max-width: 720px) {
+  .conflict-panel { width: 100%; max-height: 100dvh; gap: 12px; padding: 14px; }
+  .conflict-panel .editor-head { padding: 0; }
+  .conflict-summary { grid-template-columns: 1fr; }
+  .conflict-actions { display: grid; grid-template-columns: 1fr; }
+  .conflict-actions button { width: 100%; }
+}
 
 .rich-text li {
   margin: 2px 0;
@@ -2028,6 +2043,11 @@ label,
 
 .nested-modal {
   z-index: 140;
+}
+
+/* Conflict resolution must remain actionable above any editor that triggered it. */
+.conflict-modal {
+  z-index: 180;
 }
 
 .share-modal-panel {
