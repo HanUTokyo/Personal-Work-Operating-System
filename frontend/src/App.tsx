@@ -48,14 +48,12 @@ export function App({ initialLocale }: AppProps) {
   const [sortOrder, setSortOrder] = useState<SortOrder>("desc");
   const [busy, setBusy] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [editorTask, setEditorTask] = useState<Task | null | "new">(null);
   const [exportingAllProjects, setExportingAllProjects] = useState(false);
   const projectRoute = matchPath("/projects/:projectId", location.pathname);
-  const projectEditRoute = matchPath("/projects/:projectId/edit", location.pathname);
-  const isNewProjectRoute = location.pathname === "/projects/new";
   const flashOpen = location.pathname === "/flash-notes";
-  const detailOpen = Boolean(projectRoute) && !projectEditRoute;
-  const routeProjectId = Number((projectRoute || projectEditRoute)?.params.projectId || 0) || null;
-  const editorTask: Task | null | "new" = isNewProjectRoute ? "new" : routeProjectId && projectEditRoute ? tasks.find((task) => task.id === routeProjectId) || null : null;
+  const routeProjectId = Number(projectRoute?.params.projectId || 0) || null;
+  const detailOpen = routeProjectId !== null;
 
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
@@ -93,11 +91,6 @@ export function App({ initialLocale }: AppProps) {
     if (selectedTask && selectedTask.id !== selectedTaskId) setSelectedTaskId(selectedTask.id);
     if (!tasks.length) setSelectedTaskId(null);
   }, [selectedTask, selectedTaskId, tasks.length]);
-
-  useEffect(() => {
-    if (location.pathname === "/archived") setFilter("archived");
-    else if (filter === "archived") setFilter("all");
-  }, [location.pathname]);
 
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0 });
@@ -263,6 +256,12 @@ export function App({ initialLocale }: AppProps) {
     window.setTimeout(() => setToast(null), 3200);
   }
 
+  function goBackToPreviousPage() {
+    const historyIndex = (window.history.state as { idx?: number } | null)?.idx || 0;
+    if (historyIndex > 0) navigate(-1);
+    else navigate("/");
+  }
+
   if (!user) {
     return (
       <AuthScreen
@@ -291,12 +290,12 @@ export function App({ initialLocale }: AppProps) {
 
       <main className={(flashOpen || (detailOpen && selectedTask)) ? "project-page-shell" : "workspace home-workspace"}>
         {flashOpen ? (
-          <FlashNotes locale={locale} onClose={() => { navigate("/"); void refreshOnboarding(); }} onError={showToast} />
+          <FlashNotes locale={locale} onClose={() => { goBackToPreviousPage(); void refreshOnboarding(); }} onError={showToast} />
         ) : detailOpen && selectedTask ? (
           <ProjectDetail
             locale={locale}
             task={selectedTask}
-            onClose={() => navigate("/")}
+            onClose={goBackToPreviousPage}
             onChanged={async () => { await loadTasks(); await refreshOnboarding(); }}
             onError={showToast}
           />
@@ -307,7 +306,7 @@ export function App({ initialLocale }: AppProps) {
               locale={locale}
               onboarding={onboarding}
               onOpen={() => updateGuide("open")}
-              onCreateProject={() => navigate("/projects/new")}
+              onCreateProject={() => setEditorTask("new")}
               onOpenFocus={() => document.getElementById("current-action-goals")?.scrollIntoView({ behavior: "smooth", block: "center" })}
               onOpenKnowledge={() => navigate("/flash-notes")}
               onOpenAi={() => document.getElementById("ai-suggestions")?.scrollIntoView({ behavior: "smooth", block: "center" })}
@@ -344,8 +343,6 @@ export function App({ initialLocale }: AppProps) {
               onKeywordChange={setKeyword}
               onFilterChange={(nextFilter) => {
                 setFilter(nextFilter);
-                if (nextFilter === "archived") navigate("/archived");
-                else if (location.pathname === "/archived") navigate("/");
               }}
               onSortChange={setSortBy}
               onSortOrderToggle={() => setSortOrder((current) => current === "desc" ? "asc" : "desc")}
@@ -357,8 +354,8 @@ export function App({ initialLocale }: AppProps) {
               }}
               exportingAllProjects={exportingAllProjects}
               onExportAll={handleExportAllProjects}
-              onCreate={() => navigate("/projects/new")}
-              onEdit={(task) => navigate(`/projects/${task.id}/edit`)}
+              onCreate={() => setEditorTask("new")}
+              onEdit={(task) => setEditorTask(task)}
               onDelete={handleDeleteTask}
               onArchive={handleArchiveTask}
               onPin={handleToggleTaskPin}
@@ -371,11 +368,11 @@ export function App({ initialLocale }: AppProps) {
         <ProjectEditor
           locale={locale}
           task={editorTask === "new" ? null : editorTask}
-          onClose={() => navigate(routeProjectId ? `/projects/${routeProjectId}` : "/")}
+          onClose={() => setEditorTask(null)}
           onSaved={async () => {
+            setEditorTask(null);
             await loadTasks();
             await refreshOnboarding();
-            navigate("/");
           }}
           onError={showToast}
         />
