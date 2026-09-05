@@ -2032,6 +2032,13 @@ label,
   background: var(--surface-soft);
 }
 
+/* The modal body scrolls for long notes; keep formatting controls available. */
+.rich-editor .rich-editor-toolbar {
+  position: sticky;
+  top: 0;
+  z-index: 3;
+}
+
 .rich-editor [data-rich-text-editor-control][data-active] {
   color: var(--primary-strong);
   background: color-mix(in srgb, var(--primary) 16%, var(--surface));
@@ -2100,7 +2107,8 @@ label,
   }
 
   .focused-editor-panel .rich-editor .ProseMirror {
-    min-height: 300px;
+    min-height: 180px;
+    max-height: min(42dvh, 360px);
   }
 }
 
@@ -2365,8 +2373,8 @@ label,
   }
 
   .rich-editor .ProseMirror {
-    min-height: 360px;
-    max-height: 62dvh;
+    min-height: 220px;
+    max-height: 48dvh;
   }
 
   .focused-editor-panel .editor-body {
@@ -2405,8 +2413,8 @@ label,
   }
 
   .focused-editor-panel .rich-editor .ProseMirror {
-    min-height: 420px;
-    max-height: 68dvh;
+    min-height: 240px;
+    max-height: calc(100dvh - 340px);
   }
 }
 
