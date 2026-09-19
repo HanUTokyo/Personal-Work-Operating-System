@@ -5,6 +5,7 @@ import { dictionaries } from "./i18n";
 import type { GlobalActionGoal, GlobalAiSuggestion, Locale, OnboardingResponse, PersonalTask, Task, UserResponse } from "./types";
 import { computeMetrics, isCompleted, isRecent, isStuck } from "./utils";
 import { AppHeader } from "./components/AppHeader";
+import { QuickNavigation } from "./components/QuickNavigation";
 import { AuthScreen } from "./features/auth/AuthScreen";
 import { Dashboard } from "./features/dashboard/Dashboard";
 import { DemoWorkspacePanel } from "./features/dashboard/DemoWorkspacePanel";
@@ -392,19 +393,7 @@ export function App({ initialLocale }: AppProps) {
         )}
       </main>
 
-      {!editorTask && (
-        <nav className="quick-nav-rail" aria-label={t.quickLinks}>
-          <span>{t.quickLinks}</span>
-          <div>
-            <button type="button" onClick={() => openQuickSection("portfolio")}>{t.portfolio}</button>
-            <button type="button" onClick={() => openQuickSection("weekly-tasks")}>{t.weeklyTasks}</button>
-            <button type="button" onClick={() => openQuickSection("long-term-tasks")}>{t.longTermTasks}</button>
-            <button type="button" onClick={() => openQuickSection("ai-suggestions")}>{t.aiSuggestionsOverview}</button>
-            <button type="button" onClick={() => openQuickSection("current-action-goals")}>{t.currentActionGoal}</button>
-            <button type="button" onClick={() => openQuickSection("flash-notes")}>{t.flashNotes}</button>
-          </div>
-        </nav>
-      )}
+      {!editorTask && <QuickNavigation key={location.pathname} locale={locale} onNavigate={openQuickSection} />}
 
       {editorTask && (
         <ProjectEditor
