@@ -300,49 +300,83 @@ p {
   min-width: 0;
 }
 
-.home-quick-menu {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  min-width: 0;
-  padding: 10px 12px;
+.quick-nav-rail {
+  position: fixed;
+  z-index: 55;
+  top: 50%;
+  right: max(16px, calc((100vw - 1520px) / 2));
+  width: 158px;
+  display: grid;
+  gap: 8px;
+  transform: translateY(-50%);
+  padding: 10px;
   border: 1px solid var(--line);
   border-radius: 12px;
-  background: var(--surface-soft);
+  background: color-mix(in srgb, var(--surface) 96%, transparent);
+  box-shadow: var(--shadow-soft);
+  backdrop-filter: blur(12px);
 }
 
-.home-quick-menu > span {
-  flex: 0 0 auto;
+.quick-nav-rail > span {
   color: var(--muted);
   font-size: .82rem;
   font-weight: 700;
 }
 
-.home-quick-menu > div {
-  display: flex;
-  min-width: 0;
-  gap: 7px;
-  overflow-x: auto;
-  scrollbar-width: none;
+.quick-nav-rail > div {
+  display: grid;
+  gap: 6px;
 }
 
-.home-quick-menu > div::-webkit-scrollbar { display: none; }
-
-.home-quick-menu button {
-  flex: 0 0 auto;
-  min-height: 30px;
-  padding: 5px 9px;
+.quick-nav-rail button {
+  width: 100%;
+  min-height: 32px;
+  padding: 6px 9px;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: 8px;
   color: var(--text);
   background: var(--surface);
   font: inherit;
   font-size: .78rem;
-  white-space: nowrap;
+  line-height: 1.25;
+  text-align: left;
   cursor: pointer;
 }
 
-.home-quick-menu button:hover { border-color: var(--primary); color: var(--primary-strong); }
+.quick-nav-rail button:hover { border-color: var(--primary); color: var(--primary-strong); }
+
+@media (max-width: 720px) {
+  .quick-nav-rail {
+    top: auto;
+    right: 12px;
+    bottom: max(12px, env(safe-area-inset-bottom));
+    left: 12px;
+    width: auto;
+    transform: none;
+    gap: 6px;
+    padding: 8px;
+  }
+
+  .quick-nav-rail > span { display: none; }
+
+  .quick-nav-rail > div {
+    display: flex;
+    gap: 6px;
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .quick-nav-rail > div::-webkit-scrollbar { display: none; }
+
+  .quick-nav-rail button {
+    flex: 0 0 auto;
+    width: auto;
+    min-height: 30px;
+    padding: 5px 9px;
+    border-radius: 999px;
+    white-space: nowrap;
+  }
+}
 
 .panel,
 .auth-panel,

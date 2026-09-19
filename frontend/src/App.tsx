@@ -50,6 +50,7 @@ export function App({ initialLocale }: AppProps) {
   const [toast, setToast] = useState<string | null>(null);
   const [editorTask, setEditorTask] = useState<Task | null | "new">(null);
   const [exportingAllProjects, setExportingAllProjects] = useState(false);
+  const [pendingQuickSection, setPendingQuickSection] = useState<string | null>(null);
   const projectRoute = matchPath("/projects/:projectId", location.pathname);
   const flashOpen = location.pathname === "/flash-notes";
   const routeProjectId = Number(projectRoute?.params.projectId || 0) || null;
@@ -95,6 +96,15 @@ export function App({ initialLocale }: AppProps) {
   useEffect(() => {
     window.scrollTo({ top: 0, left: 0 });
   }, [mainViewKey]);
+
+  useEffect(() => {
+    if (!pendingQuickSection || location.pathname !== "/") return;
+    const timer = window.setTimeout(() => {
+      scrollToHomeSection(pendingQuickSection);
+      setPendingQuickSection(null);
+    }, 0);
+    return () => window.clearTimeout(timer);
+  }, [location.pathname, pendingQuickSection]);
 
   const metrics = useMemo(() => computeMetrics(tasks), [tasks]);
   const displayedTasks = useMemo(() => {
@@ -266,6 +276,20 @@ export function App({ initialLocale }: AppProps) {
     document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
   }
 
+  function openQuickSection(id: string) {
+    if (id === "flash-notes") {
+      setPendingQuickSection(null);
+      navigate("/flash-notes");
+      return;
+    }
+    if (location.pathname === "/") {
+      scrollToHomeSection(id);
+      return;
+    }
+    setPendingQuickSection(id);
+    navigate("/");
+  }
+
   if (!user) {
     return (
       <AuthScreen
@@ -315,17 +339,6 @@ export function App({ initialLocale }: AppProps) {
               onOpenKnowledge={() => navigate("/flash-notes")}
               onOpenAi={() => document.getElementById("ai-suggestions")?.scrollIntoView({ behavior: "smooth", block: "center" })}
             />
-            <nav className="home-quick-menu" aria-label={t.quickLinks}>
-              <span>{t.quickLinks}</span>
-              <div>
-                <button type="button" onClick={() => scrollToHomeSection("portfolio")}>{t.portfolio}</button>
-                <button type="button" onClick={() => scrollToHomeSection("weekly-tasks")}>{t.weeklyTasks}</button>
-                <button type="button" onClick={() => scrollToHomeSection("long-term-tasks")}>{t.longTermTasks}</button>
-                <button type="button" onClick={() => scrollToHomeSection("ai-suggestions")}>{t.aiSuggestionsOverview}</button>
-                <button type="button" onClick={() => scrollToHomeSection("current-action-goals")}>{t.currentActionGoal}</button>
-                <button type="button" onClick={() => navigate("/flash-notes")}>{t.flashNotes}</button>
-              </div>
-            </nav>
             <Dashboard
               tasks={tasks}
               metrics={metrics}
@@ -378,6 +391,20 @@ export function App({ initialLocale }: AppProps) {
           </section>
         )}
       </main>
+
+      {!editorTask && (
+        <nav className="quick-nav-rail" aria-label={t.quickLinks}>
+          <span>{t.quickLinks}</span>
+          <div>
+            <button type="button" onClick={() => openQuickSection("portfolio")}>{t.portfolio}</button>
+            <button type="button" onClick={() => openQuickSection("weekly-tasks")}>{t.weeklyTasks}</button>
+            <button type="button" onClick={() => openQuickSection("long-term-tasks")}>{t.longTermTasks}</button>
+            <button type="button" onClick={() => openQuickSection("ai-suggestions")}>{t.aiSuggestionsOverview}</button>
+            <button type="button" onClick={() => openQuickSection("current-action-goals")}>{t.currentActionGoal}</button>
+            <button type="button" onClick={() => openQuickSection("flash-notes")}>{t.flashNotes}</button>
+          </div>
+        </nav>
+      )}
 
       {editorTask && (
         <ProjectEditor
