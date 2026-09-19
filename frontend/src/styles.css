@@ -300,6 +300,50 @@ p {
   min-width: 0;
 }
 
+.home-quick-menu {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: var(--surface-soft);
+}
+
+.home-quick-menu > span {
+  flex: 0 0 auto;
+  color: var(--muted);
+  font-size: .82rem;
+  font-weight: 700;
+}
+
+.home-quick-menu > div {
+  display: flex;
+  min-width: 0;
+  gap: 7px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.home-quick-menu > div::-webkit-scrollbar { display: none; }
+
+.home-quick-menu button {
+  flex: 0 0 auto;
+  min-height: 30px;
+  padding: 5px 9px;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  color: var(--text);
+  background: var(--surface);
+  font: inherit;
+  font-size: .78rem;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.home-quick-menu button:hover { border-color: var(--primary); color: var(--primary-strong); }
+
 .panel,
 .auth-panel,
 .editor-panel,

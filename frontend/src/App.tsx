@@ -262,6 +262,10 @@ export function App({ initialLocale }: AppProps) {
     else navigate("/");
   }
 
+  function scrollToHomeSection(id: string) {
+    document.getElementById(id)?.scrollIntoView({ behavior: "smooth", block: "start" });
+  }
+
   if (!user) {
     return (
       <AuthScreen
@@ -311,6 +315,17 @@ export function App({ initialLocale }: AppProps) {
               onOpenKnowledge={() => navigate("/flash-notes")}
               onOpenAi={() => document.getElementById("ai-suggestions")?.scrollIntoView({ behavior: "smooth", block: "center" })}
             />
+            <nav className="home-quick-menu" aria-label={t.quickLinks}>
+              <span>{t.quickLinks}</span>
+              <div>
+                <button type="button" onClick={() => scrollToHomeSection("portfolio")}>{t.portfolio}</button>
+                <button type="button" onClick={() => scrollToHomeSection("weekly-tasks")}>{t.weeklyTasks}</button>
+                <button type="button" onClick={() => scrollToHomeSection("long-term-tasks")}>{t.longTermTasks}</button>
+                <button type="button" onClick={() => scrollToHomeSection("ai-suggestions")}>{t.aiSuggestionsOverview}</button>
+                <button type="button" onClick={() => scrollToHomeSection("current-action-goals")}>{t.currentActionGoal}</button>
+                <button type="button" onClick={() => navigate("/flash-notes")}>{t.flashNotes}</button>
+              </div>
+            </nav>
             <Dashboard
               tasks={tasks}
               metrics={metrics}

@@ -42,8 +42,8 @@ export function Dashboard({ tasks, metrics, includesDemoMetrics, weeklyTasks, lo
       {includesDemoMetrics && <p className="demo-metrics-note">{t.dashboardIncludesDemo}</p>}
 
       <div className="personal-task-grid">
-        <PersonalTaskList locale={locale} type="WEEKLY" tasks={weeklyTasks} onChanged={onPersonalTasksChanged} onError={onError} />
-        <PersonalTaskList locale={locale} type="LONG_TERM" tasks={longTermTasks} onChanged={onPersonalTasksChanged} onError={onError} />
+        <div id="weekly-tasks"><PersonalTaskList locale={locale} type="WEEKLY" tasks={weeklyTasks} onChanged={onPersonalTasksChanged} onError={onError} /></div>
+        <div id="long-term-tasks"><PersonalTaskList locale={locale} type="LONG_TERM" tasks={longTermTasks} onChanged={onPersonalTasksChanged} onError={onError} /></div>
       </div>
 
       <AiSuggestionsPanel suggestions={aiSuggestions} locale={locale} onChanged={onAiSuggestionsChanged} onAiUsed={onAiUsed} onExportAllProjects={onExportAllProjects} exportingAllProjects={exportingAllProjects} onError={onError} />

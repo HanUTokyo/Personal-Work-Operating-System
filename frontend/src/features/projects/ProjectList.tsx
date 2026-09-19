@@ -64,7 +64,7 @@ export function ProjectList({
   }
 
   return (
-    <section className="panel portfolio-panel">
+    <section className="panel portfolio-panel" id="portfolio">
       <div className="section-head">
         <h1>{t.portfolio}</h1>
         <div className="section-head-actions">
